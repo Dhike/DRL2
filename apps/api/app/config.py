@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "DRL2 API"
     environment: str = "development"
     cors_origins: list[str] = ["http://localhost:3000"]
+    database_url: str = "postgresql+psycopg:///drl2"
 
 
 settings = Settings()
