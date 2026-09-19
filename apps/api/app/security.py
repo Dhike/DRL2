@@ -70,3 +70,17 @@ def decode_access_token(token: str) -> str | None:
         return None
     sub = payload.get("sub")
     return sub if isinstance(sub, str) else None
+
+
+def decode_access_token_claims(token: str) -> tuple[str, datetime] | None:
+    try:
+        payload = jwt.decode(
+            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+        )
+    except jwt.PyJWTError:
+        return None
+    subject = payload.get("sub")
+    issued_at = payload.get("iat")
+    if not isinstance(subject, str) or not isinstance(issued_at, (int, float)):
+        return None
+    return subject, datetime.fromtimestamp(issued_at, tz=timezone.utc)

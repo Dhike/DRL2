@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -7,15 +9,23 @@ from app.db import get_db
 from app.deps import get_current_user
 from app.models import User
 from app.schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
     ResendCodeRequest,
+    ResetPasswordRequest,
     TokenOut,
     UserOut,
     VerifyEmailRequest,
 )
 from app.security import create_access_token, hash_password, verify_password
-from app.verification import VerifyResult, issue_code, verify_code
+from app.verification import (
+    PURPOSE_RESET_PASSWORD,
+    PURPOSE_VERIFY_EMAIL,
+    VerifyResult,
+    issue_code,
+    verify_code,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -24,6 +34,16 @@ _DUMMY_HASH = hash_password("dummy-password-for-timing")
 
 def _find_user(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email.strip().lower()))
+
+
+def _check_code_result(result: VerifyResult) -> None:
+    if result is VerifyResult.LOCKED:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many attempts. Request a new code.",
+        )
+    if result is not VerifyResult.OK:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired code")
 
 
 @router.post(
@@ -41,7 +61,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
     db.refresh(user)
-    issue_code(db, user)
+    issue_code(db, user, PURPOSE_VERIFY_EMAIL)
     return user
 
 
@@ -52,14 +72,8 @@ def verify_email(
     user = _find_user(db, payload.email)
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired code")
-    result = verify_code(db, user, payload.code)
-    if result is VerifyResult.LOCKED:
-        raise HTTPException(
-            status.HTTP_429_TOO_MANY_REQUESTS,
-            "Too many attempts. Request a new code.",
-        )
-    if result is not VerifyResult.OK:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired code")
+    _check_code_result(verify_code(db, user, payload.code, PURPOSE_VERIFY_EMAIL))
+    db.commit()
     return TokenOut(access_token=create_access_token(str(user.id)))
 
 
@@ -69,10 +83,36 @@ def resend_code(
 ) -> dict[str, str]:
     user = _find_user(db, payload.email)
     if user is not None and user.is_active and user.email_verified_at is None:
-        issue_code(db, user)
+        issue_code(db, user, PURPOSE_VERIFY_EMAIL)
     return {
         "detail": "If the account exists and is not verified, a new code has been sent."
     }
+
+
+@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+def forgot_password(
+    payload: ForgotPasswordRequest, db: Session = Depends(get_db)
+) -> dict[str, str]:
+    user = _find_user(db, payload.email)
+    if user is not None and user.is_active and user.email_verified_at is not None:
+        issue_code(db, user, PURPOSE_RESET_PASSWORD)
+    return {
+        "detail": "If an account exists for that email, a reset code has been sent."
+    }
+
+
+@router.post("/reset-password")
+def reset_password(
+    payload: ResetPasswordRequest, db: Session = Depends(get_db)
+) -> dict[str, str]:
+    user = _find_user(db, payload.email)
+    if user is None or not user.is_active or user.email_verified_at is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired code")
+    _check_code_result(verify_code(db, user, payload.code, PURPOSE_RESET_PASSWORD))
+    user.password_hash = hash_password(payload.new_password)
+    user.password_changed_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"detail": "Password updated. You can now sign in."}
 
 
 @router.post("/login", response_model=TokenOut)

@@ -37,3 +37,13 @@ class UserOut(BaseModel):
     is_active: bool
     email_verified_at: datetime | None = None
     created_at: datetime
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=8, max_length=128)

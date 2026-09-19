@@ -42,3 +42,13 @@ def send_verification_email(to: str, code: str) -> None:
         "It expires in 10 minutes. If you did not create an account, "
         "you can ignore this email.\n",
     )
+
+
+def send_password_reset_email(to: str, code: str) -> None:
+    send_email(
+        to,
+        "Your DRL2 password reset code",
+        f"Your password reset code is {code}.\n\n"
+        "It expires in 10 minutes. If you did not request this, you can "
+        "ignore this email and your password will not change.\n",
+    )
