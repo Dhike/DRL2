@@ -21,11 +21,20 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
+    const verifyUrl = `/verify?email=${encodeURIComponent(email.trim())}`;
     try {
-      if (!isLogin) await register(email, password);
-      await login(email, password);
-      router.push("/");
+      if (isLogin) {
+        await login(email, password);
+        router.push("/");
+      } else {
+        await register(email, password);
+        router.push(`${verifyUrl}&sent=1`);
+      }
     } catch (err) {
+      if (isLogin && err instanceof ApiError && err.status === 403) {
+        router.push(verifyUrl);
+        return;
+      }
       setError(
         err instanceof ApiError
           ? err.message

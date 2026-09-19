@@ -8,6 +8,7 @@ export type User = {
   email: string;
   role: string;
   is_active: boolean;
+  email_verified_at: string | null;
   created_at: string;
 };
 
@@ -54,8 +55,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       if (typeof body.detail === "string") {
         message = body.detail;
       } else if (res.status === 422) {
-        message =
-          "Please check your email and password (at least 8 characters).";
+        message = "Please check the details you entered and try again.";
       }
     } catch {
       /* response had no JSON body: keep the default message */
@@ -78,6 +78,21 @@ export async function login(email: string, password: string): Promise<void> {
     body: JSON.stringify({ email, password }),
   });
   setToken(result.access_token);
+}
+
+export async function verifyEmail(email: string, code: string): Promise<void> {
+  const result = await request<{ access_token: string }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
+  setToken(result.access_token);
+}
+
+export async function resendCode(email: string): Promise<void> {
+  await request<{ detail: string }>("/auth/resend-code", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 export function getMe(): Promise<User> {
