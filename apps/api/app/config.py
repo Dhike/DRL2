@@ -4,6 +4,7 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _DEV_JWT_SECRET = "dev-only-secret-change-me-before-production-0123456789"
+_MARKET_PROVIDERS = ("gate",)
 
 
 class Settings(BaseSettings):
@@ -25,6 +26,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_use_starttls: bool = True
+    market_provider: str = "gate"
 
     @model_validator(mode="after")
     def _validate_settings(self) -> Self:
@@ -40,6 +42,10 @@ class Settings(BaseSettings):
         if self.email_backend == "smtp" and not self.smtp_host:
             raise ValueError(
                 "DRL_SMTP_HOST is required when DRL_EMAIL_BACKEND is 'smtp'"
+            )
+        if self.market_provider not in _MARKET_PROVIDERS:
+            raise ValueError(
+                "DRL_MARKET_PROVIDER must be one of: " + ", ".join(_MARKET_PROVIDERS)
             )
         return self
 
