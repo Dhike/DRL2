@@ -23,6 +23,9 @@ class User(Base):
     email_verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -32,6 +35,8 @@ class User(Base):
 
 
 class EmailVerificationCode(Base):
+    """One-time codes sent by email. `purpose` is 'verify_email' or 'reset_password'."""
+
     __tablename__ = "email_verification_codes"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -42,6 +47,7 @@ class EmailVerificationCode(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
+    purpose: Mapped[str] = mapped_column(String(20), server_default="verify_email")
     code_hash: Mapped[str] = mapped_column(String(64))
     attempts: Mapped[int] = mapped_column(Integer, server_default="0")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
