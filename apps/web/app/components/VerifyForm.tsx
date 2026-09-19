@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { ApiError, resendCode, verifyEmail } from "../lib/api";
+import AuthShell from "./ui/AuthShell";
+import Button, { buttonClass } from "./ui/Button";
+import { Input } from "./ui/Input";
+import Message from "./ui/Message";
 
 const RESEND_SECONDS = 60;
 
@@ -64,33 +68,35 @@ export default function VerifyForm() {
 
   if (!email) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-        <h1 className="text-3xl font-semibold">DRL2</h1>
-        <p className="text-sm opacity-70">
-          We could not tell which email to verify.
-        </p>
-        <Link href="/login" className="text-sm underline">
+      <AuthShell
+        title="Verify your email"
+        subtitle="We could not tell which email to verify."
+      >
+        <Link href="/login" className={buttonClass("secondary", "w-full")}>
           Go to sign in
         </Link>
-      </main>
+      </AuthShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold">Verify your email</h1>
-        <p className="mt-2 text-sm opacity-70">
+    <AuthShell
+      title="Verify your email"
+      subtitle={
+        <>
           Enter the 6-digit code sent to
           <br />
-          <span className="font-medium opacity-100">{email}</span>
-        </p>
-      </div>
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-full max-w-sm flex-col gap-4"
-      >
-        <input
+          <span className="font-medium text-foreground">{email}</span>
+        </>
+      }
+      footer={
+        <Link href="/register" className="hover:underline">
+          Wrong email? Start over
+        </Link>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Input
           type="text"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -99,35 +105,30 @@ export default function VerifyForm() {
           aria-label="Verification code"
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-          className="rounded-lg border border-current/20 bg-transparent px-3 py-3 text-center text-2xl tracking-[0.5em] outline-none focus:border-current/60"
+          className="py-3 text-center text-2xl tracking-[0.5em]"
         />
         {error && (
-          <p role="alert" className="text-center text-sm text-red-500">
+          <Message kind="error" className="text-center">
             {error}
-          </p>
+          </Message>
         )}
-        {info && <p className="text-center text-sm opacity-70">{info}</p>}
-        <button
-          type="submit"
-          disabled={submitting || code.length !== 6}
-          className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
-        >
+        {info && (
+          <Message kind="info" className="text-center">
+            {info}
+          </Message>
+        )}
+        <Button type="submit" disabled={submitting || code.length !== 6}>
           {submitting ? "Checking..." : "Verify email"}
-        </button>
-      </form>
-      <div className="flex flex-col items-center gap-2 text-sm">
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="link"
           onClick={handleResend}
           disabled={cooldown > 0}
-          className="underline disabled:no-underline disabled:opacity-50"
         >
           {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
-        </button>
-        <Link href="/register" className="opacity-70 underline">
-          Wrong email? Start over
-        </Link>
-      </div>
-    </main>
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { ApiError, login, register } from "../lib/api";
+import AuthShell from "./ui/AuthShell";
+import Button from "./ui/Button";
+import { Field, Input } from "./ui/Input";
+import Message from "./ui/Message";
 
 type Mode = "login" | "register";
 
@@ -45,35 +49,38 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     }
   }
 
-  const inputClass =
-    "rounded-lg border border-current/20 bg-transparent px-3 py-2 outline-none focus:border-current/60";
-
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold">DRL2</h1>
-        <p className="mt-1 text-sm opacity-70">
-          {isLogin ? "Sign in to your account" : "Create your account"}
-        </p>
-      </div>
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-full max-w-sm flex-col gap-4"
-      >
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
+    <AuthShell
+      title={isLogin ? "Welcome back" : "Create your account"}
+      subtitle={
+        isLogin
+          ? "Sign in to continue to DRL2"
+          : "Start with your email and a password"
+      }
+      footer={
+        <>
+          {isLogin ? "No account yet? " : "Already registered? "}
+          <Link
+            href={isLogin ? "/register" : "/login"}
+            className="text-accent hover:underline"
+          >
+            {isLogin ? "Create one" : "Sign in"}
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Field label="Email">
+          <Input
             type="email"
             required
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={inputClass}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
+        </Field>
+        <Field label="Password">
+          <Input
             type="password"
             required
             minLength={isLogin ? 1 : 8}
@@ -81,40 +88,25 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             autoComplete={isLogin ? "current-password" : "new-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={inputClass}
           />
-        </label>
+        </Field>
         {isLogin && (
           <Link
             href="/forgot-password"
-            className="-mt-2 self-end text-sm underline opacity-70"
+            className="-mt-2 self-end text-sm text-accent hover:underline"
           >
             Forgot password?
           </Link>
         )}
-        {error && (
-          <p role="alert" className="text-sm text-red-500">
-            {error}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
-        >
+        {error && <Message kind="error">{error}</Message>}
+        <Button type="submit" disabled={submitting}>
           {submitting
             ? "Please wait..."
             : isLogin
               ? "Sign in"
               : "Create account"}
-        </button>
+        </Button>
       </form>
-      <p className="text-sm opacity-70">
-        {isLogin ? "No account yet? " : "Already registered? "}
-        <Link href={isLogin ? "/register" : "/login"} className="underline">
-          {isLogin ? "Create one" : "Sign in"}
-        </Link>
-      </p>
-    </main>
+    </AuthShell>
   );
 }

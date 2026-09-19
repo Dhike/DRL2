@@ -10,6 +10,10 @@ import {
   forgotPassword,
   resetPassword,
 } from "../lib/api";
+import AuthShell from "./ui/AuthShell";
+import Button, { buttonClass } from "./ui/Button";
+import { Field, Input } from "./ui/Input";
+import Message from "./ui/Message";
 
 const RESEND_SECONDS = 60;
 
@@ -71,53 +75,51 @@ export default function ResetPasswordForm() {
 
   if (!email) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-        <h1 className="text-3xl font-semibold">DRL2</h1>
-        <p className="text-sm opacity-70">
-          We could not tell which account to reset.
-        </p>
-        <Link href="/forgot-password" className="text-sm underline">
+      <AuthShell
+        title="Reset your password"
+        subtitle="We could not tell which account to reset."
+      >
+        <Link
+          href="/forgot-password"
+          className={buttonClass("secondary", "w-full")}
+        >
           Start over
         </Link>
-      </main>
+      </AuthShell>
     );
   }
 
   if (done) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-        <h1 className="text-3xl font-semibold">Password updated</h1>
-        <p className="text-sm opacity-70">
-          You can now sign in with your new password.
-        </p>
-        <Link
-          href="/login"
-          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background"
-        >
+      <AuthShell
+        title="Password updated"
+        subtitle="You can now sign in with your new password."
+      >
+        <Link href="/login" className={buttonClass("primary", "w-full")}>
           Sign in
         </Link>
-      </main>
+      </AuthShell>
     );
   }
 
-  const inputClass =
-    "rounded-lg border border-current/20 bg-transparent px-3 py-2 outline-none focus:border-current/60";
-
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold">Choose a new password</h1>
-        <p className="mt-2 text-sm opacity-70">
+    <AuthShell
+      title="Choose a new password"
+      subtitle={
+        <>
           Enter the 6-digit code sent to
           <br />
-          <span className="font-medium opacity-100">{email}</span>
-        </p>
-      </div>
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-full max-w-sm flex-col gap-4"
-      >
-        <input
+          <span className="font-medium text-foreground">{email}</span>
+        </>
+      }
+      footer={
+        <Link href="/forgot-password" className="hover:underline">
+          Use a different email
+        </Link>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Input
           type="text"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -126,11 +128,10 @@ export default function ResetPasswordForm() {
           aria-label="Reset code"
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-          className="rounded-lg border border-current/20 bg-transparent px-3 py-3 text-center text-2xl tracking-[0.5em] outline-none focus:border-current/60"
+          className="py-3 text-center text-2xl tracking-[0.5em]"
         />
-        <label className="flex flex-col gap-1 text-sm">
-          New password
-          <input
+        <Field label="New password">
+          <Input
             type="password"
             required
             minLength={8}
@@ -138,36 +139,30 @@ export default function ResetPasswordForm() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={inputClass}
           />
-        </label>
+        </Field>
         {error && (
-          <p role="alert" className="text-center text-sm text-red-500">
+          <Message kind="error" className="text-center">
             {error}
-          </p>
+          </Message>
         )}
-        {info && <p className="text-center text-sm opacity-70">{info}</p>}
-        <button
-          type="submit"
-          disabled={submitting || code.length !== 6}
-          className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
-        >
+        {info && (
+          <Message kind="info" className="text-center">
+            {info}
+          </Message>
+        )}
+        <Button type="submit" disabled={submitting || code.length !== 6}>
           {submitting ? "Updating..." : "Reset password"}
-        </button>
-      </form>
-      <div className="flex flex-col items-center gap-2 text-sm">
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="link"
           onClick={handleResend}
           disabled={cooldown > 0}
-          className="underline disabled:no-underline disabled:opacity-50"
         >
           {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
-        </button>
-        <Link href="/forgot-password" className="underline opacity-70">
-          Use a different email
-        </Link>
-      </div>
-    </main>
+        </Button>
+      </form>
+    </AuthShell>
   );
 }
