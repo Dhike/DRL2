@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { clearToken, getMe, type User } from "../lib/api";
+import { getMe, type User } from "../lib/api";
 import { NAV_ITEMS } from "../lib/nav";
+import Avatar from "./Avatar";
 import { UserProvider } from "./UserContext";
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -27,11 +27,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [router]);
-
-  function handleLogout() {
-    clearToken();
-    router.replace("/login");
-  }
 
   if (!user) {
     return (
@@ -73,17 +68,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <span className="hidden text-sm opacity-70 md:block">
               Analysis only. No live trading is enabled.
             </span>
-            <div className="flex items-center gap-3 text-sm">
-              <span className="max-w-40 truncate opacity-70">{user.email}</span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                aria-label="Log out"
-                className="rounded-lg p-2 hover:bg-current/10"
-              >
-                <LogOut size={18} />
-              </button>
-            </div>
+            <Link
+              href="/account"
+              aria-label="Account"
+              className="rounded-full ring-1 ring-current/20 hover:ring-current/50"
+            >
+              <Avatar size={36} />
+            </Link>
           </header>
           <main className="flex-1 p-4 pb-24 md:p-8 md:pb-8">{children}</main>
         </div>
