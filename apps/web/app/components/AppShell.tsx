@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getMe, type User } from "../lib/api";
 import { NAV_ITEMS } from "../lib/nav";
 import Avatar from "./Avatar";
+import ThemeToggle from "./ThemeToggle";
 import { UserProvider } from "./UserContext";
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -68,13 +69,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <span className="hidden text-sm opacity-70 md:block">
               Analysis only. No live trading is enabled.
             </span>
-            <Link
-              href="/account"
-              aria-label="Account"
-              className="rounded-full ring-1 ring-current/20 hover:ring-current/50"
-            >
-              <Avatar size={36} />
-            </Link>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Link
+                href="/account"
+                aria-label="Account"
+                className="rounded-full ring-1 ring-current/20 hover:ring-current/50"
+              >
+                <Avatar size={36} />
+              </Link>
+            </div>
           </header>
           <main className="flex-1 p-4 pb-24 md:p-8 md:pb-8">{children}</main>
         </div>
