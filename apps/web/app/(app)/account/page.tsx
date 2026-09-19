@@ -2,9 +2,14 @@
 
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 
 import Avatar from "../../components/Avatar";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import { Field, Input } from "../../components/ui/Input";
+import Message from "../../components/ui/Message";
 import { useUser } from "../../components/UserContext";
 import {
   ApiError,
@@ -13,21 +18,10 @@ import {
   forgotPassword,
 } from "../../lib/api";
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-current/15 p-4">
-      <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">
-        {title}
-      </h2>
-      <div className="mt-3 flex flex-col gap-3 text-sm">{children}</div>
-    </section>
-  );
-}
-
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="opacity-60">{label}</span>
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="text-muted">{label}</span>
       <span className="truncate text-right">{value}</span>
     </div>
   );
@@ -41,11 +35,6 @@ function formatDate(iso: string | null): string {
     day: "numeric",
   });
 }
-
-const inputClass =
-  "rounded-lg border border-current/20 bg-transparent px-3 py-2 outline-none focus:border-current/60";
-const buttonClass =
-  "rounded-lg border border-current/20 px-3 py-2 text-sm hover:bg-current/5 disabled:opacity-50";
 
 export default function AccountPage() {
   const user = useUser();
@@ -115,35 +104,35 @@ export default function AccountPage() {
       <div className="flex flex-col items-center gap-2 py-4 text-center">
         <Avatar size={80} />
         <h1 className="mt-2 text-lg font-semibold">{user.email}</h1>
-        <span className="rounded-full border border-current/20 px-3 py-0.5 text-xs capitalize opacity-70">
-          {user.role}
-        </span>
+        <Badge tone="accent">{user.role}</Badge>
       </div>
 
-      <Section title="Profile">
-        <Row label="Email" value={user.email} />
-        <Row label="Role" value={user.role} />
-        <Row label="Email verified" value={formatDate(user.email_verified_at)} />
-        <Row label="Member since" value={formatDate(user.created_at)} />
-      </Section>
+      <Card title="Profile">
+        <div className="flex flex-col gap-3">
+          <Row label="Email" value={user.email} />
+          <Row label="Role" value={user.role} />
+          <Row
+            label="Email verified"
+            value={formatDate(user.email_verified_at)}
+          />
+          <Row label="Member since" value={formatDate(user.created_at)} />
+        </div>
+      </Card>
 
-      <Section title="Change password">
+      <Card title="Change password">
         <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            Current password
-            <input
+          <Field label="Current password">
+            <Input
               type="password"
               required
               maxLength={128}
               autoComplete="current-password"
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
-              className={inputClass}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            New password (at least 8 characters)
-            <input
+          </Field>
+          <Field label="New password (at least 8 characters)">
+            <Input
               type="password"
               required
               minLength={8}
@@ -151,12 +140,10 @@ export default function AccountPage() {
               autoComplete="new-password"
               value={next}
               onChange={(e) => setNext(e.target.value)}
-              className={inputClass}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            Confirm new password
-            <input
+          </Field>
+          <Field label="Confirm new password">
+            <Input
               type="password"
               required
               minLength={8}
@@ -164,54 +151,51 @@ export default function AccountPage() {
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className={inputClass}
             />
-          </label>
-          {changeError && (
-            <p role="alert" className="text-red-500">
-              {changeError}
-            </p>
-          )}
+          </Field>
+          {changeError && <Message kind="error">{changeError}</Message>}
           {changeDone && (
-            <p role="status" className="text-green-500">
+            <Message kind="success">
               Password updated. Any other devices have been signed out.
-            </p>
+            </Message>
           )}
-          <button type="submit" disabled={changing} className={buttonClass}>
+          <Button type="submit" disabled={changing}>
             {changing ? "Updating..." : "Change password"}
-          </button>
+          </Button>
         </form>
-      </Section>
+      </Card>
 
-      <Section title="Forgot your password?">
-        <p className="opacity-70">
+      <Card title="Forgot your password?">
+        <p className="text-sm text-muted">
           Reset it with a 6-digit code emailed to {user.email}.
         </p>
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={handleResetPassword}
           disabled={sending}
-          className={buttonClass}
+          className="mt-3 w-full"
         >
           {sending ? "Sending code..." : "Send reset code"}
-        </button>
+        </Button>
         {resetError && (
-          <p role="alert" className="text-red-500">
+          <Message kind="error" className="mt-2">
             {resetError}
-          </p>
+          </Message>
         )}
-      </Section>
+      </Card>
 
-      <Section title="Session">
-        <button
+      <Card title="Session">
+        <Button
           type="button"
+          variant="danger"
           onClick={handleLogout}
-          className={`flex items-center justify-center gap-2 ${buttonClass}`}
+          className="w-full"
         >
           <LogOut size={16} />
           Log out
-        </button>
-      </Section>
+        </Button>
+      </Card>
     </div>
   );
 }

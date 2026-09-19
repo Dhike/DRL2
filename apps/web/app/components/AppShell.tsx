@@ -31,7 +31,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm opacity-70">
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted">
         Loading...
       </div>
     );
@@ -43,8 +43,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <UserProvider value={user}>
       <div className="min-h-screen md:flex">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-current/10 p-4 md:flex">
-          <div className="mb-6 px-2 text-xl font-semibold">DRL2</div>
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface p-4 md:flex">
+          <div className="mb-6 px-2 text-lg font-semibold tracking-widest text-accent">
+            DRL2
+          </div>
           <nav className="flex flex-1 flex-col gap-1">
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
               <Link
@@ -52,8 +54,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 href={href}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
                   isActive(href)
-                    ? "bg-current/10 font-medium"
-                    : "opacity-70 hover:bg-current/5"
+                    ? "bg-accent/10 font-medium text-accent"
+                    : "text-muted hover:bg-surface-hover hover:text-foreground"
                 }`}
               >
                 <Icon size={18} />
@@ -64,9 +66,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-current/10 px-4 py-3">
-            <span className="text-lg font-semibold md:hidden">DRL2</span>
-            <span className="hidden text-sm opacity-70 md:block">
+          <header className="flex items-center justify-between border-b border-border px-4 py-3">
+            <span className="text-sm font-semibold tracking-widest text-accent md:hidden">
+              DRL2
+            </span>
+            <span className="hidden text-sm text-muted md:block">
               Analysis only. No live trading is enabled.
             </span>
             <div className="flex items-center gap-2">
@@ -74,7 +78,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <Link
                 href="/account"
                 aria-label="Account"
-                className="rounded-full ring-1 ring-current/20 hover:ring-current/50"
+                className="rounded-full ring-1 ring-border hover:ring-accent"
               >
                 <Avatar size={36} />
               </Link>
@@ -83,13 +87,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <main className="flex-1 p-4 pb-24 md:p-8 md:pb-8">{children}</main>
         </div>
 
-        <nav className="fixed inset-x-0 bottom-0 flex justify-around border-t border-current/10 bg-background py-2 md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 flex justify-around border-t border-border bg-surface py-2 md:hidden">
           {NAV_ITEMS.map(({ href, short, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               className={`flex flex-col items-center gap-1 px-2 text-[10px] ${
-                isActive(href) ? "font-medium" : "opacity-60"
+                isActive(href) ? "font-medium text-accent" : "text-muted"
               }`}
             >
               <Icon size={20} />

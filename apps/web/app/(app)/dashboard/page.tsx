@@ -1,22 +1,13 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 
+import Badge from "../../components/ui/Badge";
+import Card from "../../components/ui/Card";
 import { useUser } from "../../components/UserContext";
 import { API_BASE_URL } from "../../lib/api";
 
 type Health = { status: string; service: string; environment: string };
-
-function Card({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-current/15 p-4">
-      <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">
-        {title}
-      </h2>
-      <div className="mt-2 text-sm">{children}</div>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const user = useUser();
@@ -33,31 +24,42 @@ export default function DashboardPage() {
       .catch((err: Error) => setHealthError(err.message));
   }, []);
 
-  let apiText = "Checking...";
-  if (health) apiText = `Online (${health.environment})`;
-  else if (healthError) apiText = `Unreachable: ${healthError}`;
+  let apiBadge = <Badge>Checking...</Badge>;
+  let apiDetail = "Contacting the server";
+  if (health) {
+    apiBadge = <Badge tone="buy">Online</Badge>;
+    apiDetail = `Environment: ${health.environment}`;
+  } else if (healthError) {
+    apiBadge = <Badge tone="sell">Unreachable</Badge>;
+    apiDetail = healthError;
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-1 text-sm opacity-70">Welcome back, {user.email}</p>
+      <p className="mt-1 text-sm text-muted">Welcome back, {user.email}</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Card title="API status">{apiText}</Card>
+        <Card title="API status">
+          {apiBadge}
+          <p className="mt-2 text-sm text-muted">{apiDetail}</p>
+        </Card>
         <Card title="Account">
-          {user.email}
-          <span className="block opacity-60">Role: {user.role}</span>
+          <p className="truncate text-sm">{user.email}</p>
+          <div className="mt-2">
+            <Badge tone="accent">{user.role}</Badge>
+          </div>
         </Card>
         <Card title="Market data">
-          Not connected yet
-          <span className="block opacity-60">
+          <Badge tone="warning">Not connected</Badge>
+          <p className="mt-2 text-sm text-muted">
             The first data provider arrives in Phase 4.
-          </span>
+          </p>
         </Card>
         <Card title="Scanner">
-          No scans yet
-          <span className="block opacity-60">
+          <Badge>Idle</Badge>
+          <p className="mt-2 text-sm text-muted">
             Automatic scanning arrives in Phase 8.
-          </span>
+          </p>
         </Card>
       </div>
     </div>
