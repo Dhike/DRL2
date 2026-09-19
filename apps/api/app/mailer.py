@@ -52,3 +52,13 @@ def send_password_reset_email(to: str, code: str) -> None:
         "It expires in 10 minutes. If you did not request this, you can "
         "ignore this email and your password will not change.\n",
     )
+
+
+def send_password_changed_email(to: str) -> None:
+    send_email(
+        to,
+        "Your DRL2 password was changed",
+        "The password for your DRL2 account was just changed.\n\n"
+        "If this was you, no action is needed. If it was not you, reset "
+        "your password immediately and contact support.\n",
+    )

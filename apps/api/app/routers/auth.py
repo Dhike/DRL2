@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,8 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_user
+from app.mailer import send_password_changed_email
 from app.models import User
 from app.schemas import (
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
@@ -27,6 +30,8 @@ from app.verification import (
     verify_code,
 )
 
+logger = logging.getLogger("drl2.auth")
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _DUMMY_HASH = hash_password("dummy-password-for-timing")
@@ -44,6 +49,13 @@ def _check_code_result(result: VerifyResult) -> None:
         )
     if result is not VerifyResult.OK:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired code")
+
+
+def _notify_password_changed(email: str) -> None:
+    try:
+        send_password_changed_email(email)
+    except Exception:
+        logger.exception("Failed to send password-changed email to %s", email)
 
 
 @router.post(
@@ -112,7 +124,30 @@ def reset_password(
     user.password_hash = hash_password(payload.new_password)
     user.password_changed_at = datetime.now(timezone.utc)
     db.commit()
+    _notify_password_changed(user.email)
     return {"detail": "Password updated. You can now sign in."}
+
+
+@router.post("/change-password", response_model=TokenOut)
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TokenOut:
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Current password is incorrect"
+        )
+    if payload.current_password == payload.new_password:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "New password must be different from the current one",
+        )
+    current_user.password_hash = hash_password(payload.new_password)
+    current_user.password_changed_at = datetime.now(timezone.utc)
+    db.commit()
+    _notify_password_changed(current_user.email)
+    return TokenOut(access_token=create_access_token(str(current_user.id)))
 
 
 @router.post("/login", response_model=TokenOut)
