@@ -84,6 +84,14 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             className={inputClass}
           />
         </label>
+        {isLogin && (
+          <Link
+            href="/forgot-password"
+            className="-mt-2 self-end text-sm underline opacity-70"
+          >
+            Forgot password?
+          </Link>
+        )}
         {error && (
           <p role="alert" className="text-sm text-red-500">
             {error}
