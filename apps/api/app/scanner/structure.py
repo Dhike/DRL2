@@ -227,3 +227,202 @@ def analyze_market_structure(
         state=state,
         swings=tuple(classified),
     )
+
+
+@dataclass(frozen=True)
+class BreakOfStructure:
+    direction: str
+    broken_level: float
+    candle_index: int
+    candle_timestamp: object
+
+
+def detect_choch(
+    candles: list[Candle],
+    external: ExternalStructure,
+) -> ChangeOfCharacter | None:
+    """Detect a change of character by closing through the protected external level."""
+
+    if not candles:
+        return None
+
+    if external.direction == MarketState.UPTREND:
+        protected_low = external.protected_low
+
+        if protected_low is None:
+            return None
+
+        for candle_index, candle in enumerate(candles):
+            if candle.close < protected_low.price:
+                return ChangeOfCharacter(
+                    direction="bearish",
+                    broken_level=protected_low.price,
+                    candle_index=candle_index,
+                    candle_timestamp=candle.timestamp,
+                    previous_direction=MarketState.UPTREND,
+                )
+
+    elif external.direction == MarketState.DOWNTREND:
+        protected_high = external.protected_high
+
+        if protected_high is None:
+            return None
+
+        for candle_index, candle in enumerate(candles):
+            if candle.close > protected_high.price:
+                return ChangeOfCharacter(
+                    direction="bullish",
+                    broken_level=protected_high.price,
+                    candle_index=candle_index,
+                    candle_timestamp=candle.timestamp,
+                    previous_direction=MarketState.DOWNTREND,
+                )
+
+    return None
+
+
+def detect_bos(
+    candles: list[Candle],
+    swings: list[SwingPoint],
+) -> list[BreakOfStructure]:
+    bos_events: list[BreakOfStructure] = []
+
+    confirmed_swings = [
+        swing
+        for swing in swings
+        if swing.label is not None
+    ]
+
+    if not confirmed_swings:
+        return bos_events
+
+    available_swings: list[SwingPoint] = []
+
+    last_bos_direction: str | None = None
+    waiting_for_new_structure = False
+
+    consumed_levels: set[int] = set()
+
+    for candle_index, candle in enumerate(candles):
+
+        known_indices = {
+            swing.index
+            for swing in available_swings
+        }
+
+        newly_available = [
+            swing
+            for swing in confirmed_swings
+            if (
+                swing.index < candle_index
+                and swing.index not in known_indices
+            )
+        ]
+
+        available_swings.extend(newly_available)
+
+        if not available_swings:
+            continue
+
+        if waiting_for_new_structure:
+
+            if last_bos_direction == "bullish":
+                has_new_low = any(
+                    swing.swing_type == SwingType.LOW
+                    and bos_events
+                    and swing.index > bos_events[-1].candle_index
+                    and swing.index < candle_index
+                    for swing in available_swings
+                )
+
+                if has_new_low:
+                    waiting_for_new_structure = False
+
+            elif last_bos_direction == "bearish":
+                has_new_high = any(
+                    swing.swing_type == SwingType.HIGH
+                    and bos_events
+                    and swing.index > bos_events[-1].candle_index
+                    and swing.index < candle_index
+                    for swing in available_swings
+                )
+
+                if has_new_high:
+                    waiting_for_new_structure = False
+
+            if waiting_for_new_structure:
+                continue
+
+        latest_highs = [
+            swing
+            for swing in available_swings
+            if (
+                swing.swing_type == SwingType.HIGH
+                and swing.index < candle_index
+                and swing.index not in consumed_levels
+            )
+        ]
+
+        latest_lows = [
+            swing
+            for swing in available_swings
+            if (
+                swing.swing_type == SwingType.LOW
+                and swing.index < candle_index
+                and swing.index not in consumed_levels
+            )
+        ]
+
+        latest_high = (
+            max(latest_highs, key=lambda swing: swing.index)
+            if latest_highs
+            else None
+        )
+
+        latest_low = (
+            max(latest_lows, key=lambda swing: swing.index)
+            if latest_lows
+            else None
+        )
+
+        if (
+            latest_high is not None
+            and last_bos_direction != "bullish"
+            and candle.close > latest_high.price
+        ):
+            bos_events.append(
+                BreakOfStructure(
+                    direction="bullish",
+                    broken_level=latest_high.price,
+                    candle_index=candle_index,
+                    candle_timestamp=candle.timestamp,
+                )
+            )
+
+            consumed_levels.add(latest_high.index)
+            last_bos_direction = "bullish"
+            waiting_for_new_structure = True
+
+            continue
+
+        if (
+            latest_low is not None
+            and last_bos_direction != "bearish"
+            and candle.close < latest_low.price
+        ):
+            bos_events.append(
+                BreakOfStructure(
+                    direction="bearish",
+                    broken_level=latest_low.price,
+                    candle_index=candle_index,
+                    candle_timestamp=candle.timestamp,
+                )
+            )
+
+            consumed_levels.add(latest_low.index)
+            last_bos_direction = "bearish"
+            waiting_for_new_structure = True
+
+            continue
+
+    return bos_events
