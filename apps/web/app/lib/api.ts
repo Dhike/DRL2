@@ -12,6 +12,31 @@ export type User = {
   created_at: string;
 };
 
+export type InstrumentInfo = { symbol: string; market: string };
+
+export type Catalog = {
+  provider: string;
+  instruments: InstrumentInfo[];
+  timeframes: string[];
+};
+
+export type CandleData = {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  closed: boolean;
+};
+
+export type CandlesResponse = {
+  provider: string;
+  symbol: string;
+  timeframe: string;
+  candles: CandleData[];
+};
+
 export class ApiError extends Error {
   status: number;
 
@@ -132,4 +157,17 @@ export async function changePassword(
 
 export function getMe(): Promise<User> {
   return request<User>("/auth/me");
+}
+
+export function getCatalog(): Promise<Catalog> {
+  return request<Catalog>("/market/instruments");
+}
+
+export function getCandles(
+  symbol: string,
+  timeframe: string,
+  limit = 300,
+): Promise<CandlesResponse> {
+  const query = new URLSearchParams({ symbol, timeframe, limit: String(limit) });
+  return request<CandlesResponse>(`/market/candles?${query.toString()}`);
 }
