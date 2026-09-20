@@ -545,3 +545,122 @@ def should_promote_to_external(
         return False
 
     return False
+
+
+def classify_structure_scope(
+    candles: list[Candle],
+    swings: list[SwingPoint],
+    bos_events: list[BreakOfStructure],
+) -> tuple[SwingPoint, ...]:
+    """Classify confirmed swings using the current external structure."""
+
+    if not swings:
+        return tuple()
+
+    market_state = classify_market_state(swings)
+
+    external = find_external_structure(
+        swings,
+        bos_events,
+        market_state,
+    )
+
+    scopes: dict[int, StructureScope] = {
+        swing.index: StructureScope.UNDEFINED
+        for swing in swings
+    }
+
+    external_indices = {
+        swing.index
+        for swing in (
+            external.protected_high,
+            external.protected_low,
+            external.external_high,
+            external.external_low,
+        )
+        if swing is not None
+    }
+
+    for index in external_indices:
+        scopes[index] = StructureScope.EXTERNAL
+
+    if not bos_events:
+        return tuple(
+            SwingPoint(
+                index=swing.index,
+                timestamp=swing.timestamp,
+                price=swing.price,
+                swing_type=swing.swing_type,
+                label=swing.label,
+                scope=scopes[swing.index],
+            )
+            for swing in swings
+        )
+
+    latest_bos = bos_events[-1]
+
+    if latest_bos.direction == "bullish":
+        current_external_high = external.external_high
+        candidate_low: SwingPoint | None = None
+
+        for swing in swings:
+            if swing.index <= latest_bos.candle_index:
+                continue
+
+            if swing.swing_type == SwingType.LOW:
+                candidate_low = swing
+                scopes[swing.index] = StructureScope.INTERNAL
+
+            elif swing.swing_type == SwingType.HIGH:
+                if (
+                    current_external_high is not None
+                    and swing.price > current_external_high.price
+                ):
+                    scopes[swing.index] = StructureScope.EXTERNAL
+
+                    if candidate_low is not None:
+                        scopes[candidate_low.index] = StructureScope.EXTERNAL
+
+                    current_external_high = swing
+                    candidate_low = None
+                else:
+                    scopes[swing.index] = StructureScope.INTERNAL
+
+    elif latest_bos.direction == "bearish":
+        current_external_low = external.external_low
+        candidate_high: SwingPoint | None = None
+
+        for swing in swings:
+            if swing.index <= latest_bos.candle_index:
+                continue
+
+            if swing.swing_type == SwingType.HIGH:
+                candidate_high = swing
+                scopes[swing.index] = StructureScope.INTERNAL
+
+            elif swing.swing_type == SwingType.LOW:
+                if (
+                    current_external_low is not None
+                    and swing.price < current_external_low.price
+                ):
+                    scopes[swing.index] = StructureScope.EXTERNAL
+
+                    if candidate_high is not None:
+                        scopes[candidate_high.index] = StructureScope.EXTERNAL
+
+                    current_external_low = swing
+                    candidate_high = None
+                else:
+                    scopes[swing.index] = StructureScope.INTERNAL
+
+    return tuple(
+        SwingPoint(
+            index=swing.index,
+            timestamp=swing.timestamp,
+            price=swing.price,
+            swing_type=swing.swing_type,
+            label=swing.label,
+            scope=scopes[swing.index],
+        )
+        for swing in swings
+    )
