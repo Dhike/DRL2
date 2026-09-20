@@ -108,3 +108,193 @@ def _is_strong_bearish_candle(
         and body >= average_body * 1.5
         and body / candle_range >= 0.60
     )
+
+
+def _is_bullish_pin_bar(
+    candle: Candle,
+    level: float,
+) -> bool:
+    candle_range = _range_size(candle)
+    body = _body_size(candle)
+
+    if candle_range <= 0 or body <= 0:
+        return False
+
+    lower_wick = _lower_wick(candle)
+    upper_wick = _upper_wick(candle)
+
+    return (
+        candle.low <= level
+        and candle.close > level
+        and _is_bullish(candle)
+        and lower_wick >= body * 2.0
+        and lower_wick > upper_wick
+        and body / candle_range <= 0.40
+    )
+
+
+def _is_bearish_pin_bar(
+    candle: Candle,
+    level: float,
+) -> bool:
+    candle_range = _range_size(candle)
+    body = _body_size(candle)
+
+    if candle_range <= 0 or body <= 0:
+        return False
+
+    upper_wick = _upper_wick(candle)
+    lower_wick = _lower_wick(candle)
+
+    return (
+        candle.high >= level
+        and candle.close < level
+        and _is_bearish(candle)
+        and upper_wick >= body * 2.0
+        and upper_wick > lower_wick
+        and body / candle_range <= 0.40
+    )
+
+
+def _is_bullish_engulfing(
+    previous: Candle,
+    candle: Candle,
+    level: float,
+) -> bool:
+    if not (_is_bearish(previous) and _is_bullish(candle)):
+        return False
+
+    return (
+        candle.low <= level
+        and candle.close > level
+        and candle.open <= previous.close
+        and candle.close >= previous.open
+        and _body_size(candle) > _body_size(previous)
+    )
+
+
+def _is_bearish_engulfing(
+    previous: Candle,
+    candle: Candle,
+    level: float,
+) -> bool:
+    if not (_is_bullish(previous) and _is_bearish(candle)):
+        return False
+
+    return (
+        candle.high >= level
+        and candle.close < level
+        and candle.open >= previous.close
+        and candle.close <= previous.open
+        and _body_size(candle) > _body_size(previous)
+    )
+
+
+def _is_bullish_outside_bar(
+    previous: Candle,
+    candle: Candle,
+    level: float,
+) -> bool:
+    return (
+        _is_bullish(candle)
+        and candle.high > previous.high
+        and candle.low < previous.low
+        and candle.close > level
+    )
+
+
+def _is_bearish_outside_bar(
+    previous: Candle,
+    candle: Candle,
+    level: float,
+) -> bool:
+    return (
+        _is_bearish(candle)
+        and candle.high > previous.high
+        and candle.low < previous.low
+        and candle.close < level
+    )
+
+
+def _is_bullish_marubozu(
+    candle: Candle,
+    level: float,
+) -> bool:
+    candle_range = _range_size(candle)
+    body = _body_size(candle)
+
+    if candle_range <= 0:
+        return False
+
+    return (
+        _is_bullish(candle)
+        and candle.low <= level
+        and candle.close > level
+        and body / candle_range >= 0.85
+    )
+
+
+def _is_bearish_marubozu(
+    candle: Candle,
+    level: float,
+) -> bool:
+    candle_range = _range_size(candle)
+    body = _body_size(candle)
+
+    if candle_range <= 0:
+        return False
+
+    return (
+        _is_bearish(candle)
+        and candle.high >= level
+        and candle.close < level
+        and body / candle_range >= 0.85
+    )
+
+
+def _is_hammer(
+    candle: Candle,
+    level: float,
+) -> bool:
+    candle_range = _range_size(candle)
+    body = _body_size(candle)
+
+    if candle_range <= 0 or body <= 0:
+        return False
+
+    lower_wick = _lower_wick(candle)
+    upper_wick = _upper_wick(candle)
+    body_midpoint = (candle.open + candle.close) / 2
+
+    return (
+        _is_bullish(candle)
+        and candle.low <= level
+        and candle.close > level
+        and lower_wick >= body * 2.0
+        and upper_wick <= body
+        and body_midpoint >= candle.low + candle_range * 0.60
+    )
+
+
+def _is_shooting_star(
+    candle: Candle,
+    level: float,
+) -> bool:
+    candle_range = _range_size(candle)
+    body = _body_size(candle)
+
+    if candle_range <= 0 or body <= 0:
+        return False
+
+    upper_wick = _upper_wick(candle)
+    lower_wick = _lower_wick(candle)
+    body_midpoint = (candle.open + candle.close) / 2
+
+    return (
+        _is_bearish(candle)
+        and candle.high >= level
+        and candle.close < level
+        and upper_wick >= body * 2.0
+        and lower_wick <= body
+        and body_midpoint <= candle.low + candle_range * 0.40
+    )
