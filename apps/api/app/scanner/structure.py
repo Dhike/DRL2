@@ -426,3 +426,122 @@ def detect_bos(
             continue
 
     return bos_events
+
+
+def find_external_structure(
+    swings: list[SwingPoint],
+    bos_events: list[BreakOfStructure],
+    market_state: MarketState,
+) -> ExternalStructure:
+    """Find the current external structural anchors."""
+
+    if not swings or not bos_events:
+        return ExternalStructure(
+            direction=market_state,
+            protected_high=None,
+            protected_low=None,
+            external_high=None,
+            external_low=None,
+        )
+
+    latest_bos = bos_events[-1]
+
+    if latest_bos.direction == "bullish":
+        broken_high = next(
+            (
+                swing
+                for swing in reversed(swings)
+                if (
+                    swing.swing_type == SwingType.HIGH
+                    and swing.price == latest_bos.broken_level
+                )
+            ),
+            None,
+        )
+
+        protected_low = next(
+            (
+                swing
+                for swing in reversed(swings)
+                if (
+                    swing.swing_type == SwingType.LOW
+                    and swing.index < latest_bos.candle_index
+                )
+            ),
+            None,
+        )
+
+        return ExternalStructure(
+            direction=MarketState.UPTREND,
+            protected_high=None,
+            protected_low=protected_low,
+            external_high=broken_high,
+            external_low=None,
+        )
+
+    if latest_bos.direction == "bearish":
+        broken_low = next(
+            (
+                swing
+                for swing in reversed(swings)
+                if (
+                    swing.swing_type == SwingType.LOW
+                    and swing.price == latest_bos.broken_level
+                )
+            ),
+            None,
+        )
+
+        protected_high = next(
+            (
+                swing
+                for swing in reversed(swings)
+                if (
+                    swing.swing_type == SwingType.HIGH
+                    and swing.index < latest_bos.candle_index
+                )
+            ),
+            None,
+        )
+
+        return ExternalStructure(
+            direction=MarketState.DOWNTREND,
+            protected_high=protected_high,
+            protected_low=None,
+            external_high=None,
+            external_low=broken_low,
+        )
+
+    return ExternalStructure(
+        direction=market_state,
+        protected_high=None,
+        protected_low=None,
+        external_high=None,
+        external_low=None,
+    )
+
+
+def should_promote_to_external(
+    swing: SwingPoint,
+    external: ExternalStructure,
+) -> bool:
+    """Determine whether a confirmed swing should become a new external anchor."""
+    if external.direction == MarketState.UPTREND:
+        if (
+            swing.swing_type == SwingType.HIGH
+            and external.external_high is not None
+        ):
+            return swing.price > external.external_high.price
+
+        return False
+
+    if external.direction == MarketState.DOWNTREND:
+        if (
+            swing.swing_type == SwingType.LOW
+            and external.external_low is not None
+        ):
+            return swing.price < external.external_low.price
+
+        return False
+
+    return False
