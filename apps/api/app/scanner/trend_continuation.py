@@ -298,3 +298,231 @@ def _is_shooting_star(
         and lower_wick <= body
         and body_midpoint <= candle.low + candle_range * 0.40
     )
+
+
+def _is_morning_star(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 2:
+        return False
+
+    first = candles[index - 2]
+    middle = candles[index - 1]
+    third = candles[index]
+
+    first_body = _body_size(first)
+    middle_body = _body_size(middle)
+
+    if first_body <= 0:
+        return False
+
+    midpoint = (first.open + first.close) / 2
+
+    return (
+        _is_bearish(first)
+        and middle_body <= first_body * 0.50
+        and _is_bullish(third)
+        and third.close > midpoint
+        and third.close > level
+        and third.low <= level
+    )
+
+
+def _is_evening_star(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 2:
+        return False
+
+    first = candles[index - 2]
+    middle = candles[index - 1]
+    third = candles[index]
+
+    first_body = _body_size(first)
+    middle_body = _body_size(middle)
+
+    if first_body <= 0:
+        return False
+
+    midpoint = (first.open + first.close) / 2
+
+    return (
+        _is_bullish(first)
+        and middle_body <= first_body * 0.50
+        and _is_bearish(third)
+        and third.close < midpoint
+        and third.close < level
+        and third.high >= level
+    )
+
+
+def _is_three_white_soldiers(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 2:
+        return False
+
+    first = candles[index - 2]
+    second = candles[index - 1]
+    third = candles[index]
+
+    return (
+        _is_bullish(first)
+        and _is_bullish(second)
+        and _is_bullish(third)
+        and second.close > first.close
+        and third.close > second.close
+        and second.open > first.open
+        and third.open > second.open
+        and third.close > level
+        and third.low <= level
+    )
+
+
+def _is_three_black_crows(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 2:
+        return False
+
+    first = candles[index - 2]
+    second = candles[index - 1]
+    third = candles[index]
+
+    return (
+        _is_bearish(first)
+        and _is_bearish(second)
+        and _is_bearish(third)
+        and second.close < first.close
+        and third.close < second.close
+        and second.open < first.open
+        and third.open < second.open
+        and third.close < level
+        and third.high >= level
+    )
+
+
+def _is_rising_three_methods(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 4:
+        return False
+
+    first = candles[index - 4]
+    second = candles[index - 3]
+    third = candles[index - 2]
+    fourth = candles[index - 1]
+    fifth = candles[index]
+
+    first_body = _body_size(first)
+    fifth_body = _body_size(fifth)
+
+    if first_body <= 0 or fifth_body <= 0:
+        return False
+
+    return (
+        _is_bullish(first)
+        and _is_bearish(second)
+        and _is_bearish(third)
+        and _is_bearish(fourth)
+        and second.high < first.high
+        and third.high < first.high
+        and fourth.high < first.high
+        and second.low > first.low
+        and third.low > first.low
+        and fourth.low > first.low
+        and _is_bullish(fifth)
+        and fifth.close > first.high
+        and fifth.close > level
+        and fifth_body >= first_body * 0.50
+    )
+
+
+def _is_falling_three_methods(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 4:
+        return False
+
+    first = candles[index - 4]
+    second = candles[index - 3]
+    third = candles[index - 2]
+    fourth = candles[index - 1]
+    fifth = candles[index]
+
+    first_body = _body_size(first)
+    fifth_body = _body_size(fifth)
+
+    if first_body <= 0 or fifth_body <= 0:
+        return False
+
+    return (
+        _is_bearish(first)
+        and _is_bullish(second)
+        and _is_bullish(third)
+        and _is_bullish(fourth)
+        and second.high < first.high
+        and third.high < first.high
+        and fourth.high < first.high
+        and second.low > first.low
+        and third.low > first.low
+        and fourth.low > first.low
+        and _is_bearish(fifth)
+        and fifth.close < first.low
+        and fifth.close < level
+        and fifth_body >= first_body * 0.50
+    )
+
+
+def _is_bullish_inside_bar_breakout(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 2:
+        return False
+
+    mother = candles[index - 2]
+    inside = candles[index - 1]
+    breakout = candles[index]
+
+    return (
+        inside.high <= mother.high
+        and inside.low >= mother.low
+        and _is_bullish(breakout)
+        and breakout.close > mother.high
+        and breakout.close > level
+    )
+
+
+def _is_bearish_inside_bar_breakout(
+    candles: list[Candle],
+    index: int,
+    level: float,
+) -> bool:
+    if index < 2:
+        return False
+
+    mother = candles[index - 2]
+    inside = candles[index - 1]
+    breakout = candles[index]
+
+    return (
+        inside.high <= mother.high
+        and inside.low >= mother.low
+        and _is_bearish(breakout)
+        and breakout.close < mother.low
+        and breakout.close < level
+    )
