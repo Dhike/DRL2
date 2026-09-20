@@ -51,7 +51,7 @@ async def get_candles(
     except UnknownInstrumentError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown instrument")
     except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc))
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
     except MarketDataError:
         logger.exception("Market data request failed")
         raise HTTPException(
