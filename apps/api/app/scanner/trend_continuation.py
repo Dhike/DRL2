@@ -526,3 +526,265 @@ def _is_bearish_inside_bar_breakout(
         and breakout.close < mother.low
         and breakout.close < level
     )
+
+
+def detect_confirmation(
+    candles: list[Candle],
+    retest: TrendContinuationRetest,
+) -> TrendContinuationConfirmation | None:
+    """
+    Detect an approved candlestick confirmation after the BOS retest.
+
+    The pattern must:
+        - occur after the retest,
+        - respect the BOS level,
+        - agree with the trend direction,
+        - and produce a directional close.
+
+    Pattern priority:
+        1. Hammer / Shooting Star
+        2. Pin Bar
+        3. Marubozu
+        4. Outside Bar
+        5. Engulfing
+        6. Multi-candle confirmations
+    """
+    start_index = retest.retest_index + 1
+
+    for candle_index in range(
+        start_index,
+        len(candles),
+    ):
+        candle = candles[candle_index]
+
+        if retest.direction == "bullish":
+            if _is_hammer(
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="hammer",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_bullish_pin_bar(
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="bullish_pin_bar",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_bullish_marubozu(
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="bullish_marubozu",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if candle_index >= 1 and _is_bullish_outside_bar(
+                candles[candle_index - 1],
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="bullish_outside_bar",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if candle_index >= 1 and _is_bullish_engulfing(
+                candles[candle_index - 1],
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="bullish_engulfing",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_morning_star(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="morning_star",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_three_white_soldiers(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="three_white_soldiers",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_rising_three_methods(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="rising_three_methods",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_bullish_inside_bar_breakout(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bullish",
+                    confirmation_index=candle_index,
+                    pattern="bullish_inside_bar_breakout",
+                    candle=candle,
+                    retest=retest,
+                )
+
+        elif retest.direction == "bearish":
+            if _is_shooting_star(
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="shooting_star",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_bearish_pin_bar(
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="bearish_pin_bar",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_bearish_marubozu(
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="bearish_marubozu",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if candle_index >= 1 and _is_bearish_outside_bar(
+                candles[candle_index - 1],
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="bearish_outside_bar",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if candle_index >= 1 and _is_bearish_engulfing(
+                candles[candle_index - 1],
+                candle,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="bearish_engulfing",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_evening_star(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="evening_star",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_three_black_crows(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="three_black_crows",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_falling_three_methods(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="falling_three_methods",
+                    candle=candle,
+                    retest=retest,
+                )
+
+            if _is_bearish_inside_bar_breakout(
+                candles,
+                candle_index,
+                retest.break_level,
+            ):
+                return TrendContinuationConfirmation(
+                    direction="bearish",
+                    confirmation_index=candle_index,
+                    pattern="bearish_inside_bar_breakout",
+                    candle=candle,
+                    retest=retest,
+                )
+
+    return None
