@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from app.market.models import Candle
+from app.scanner.confirmation import detect_pattern_confirmation
 from app.scanner.structure import (
     BreakOfStructure,
     StructureScope,
@@ -45,9 +46,22 @@ class BreakAndRetestSetup:
 
 
 @dataclass(frozen=True)
+class BreakAndRetestSignal:
+    direction: str
+    entry_price: float
+    stop_loss: float
+    take_profit: float | None
+    break_level: float
+    confirmation_pattern: str
+    reason: str
+    structure_scope: StructureScope = StructureScope.UNDEFINED
+
+
+@dataclass(frozen=True)
 class BreakAndRetestResult:
     state: BreakAndRetestState
     setup: BreakAndRetestSetup | None
+    signal: BreakAndRetestSignal | None = None
 
 
 def _find_broken_structure(
@@ -264,4 +278,66 @@ def detect_break_and_retest(
     return BreakAndRetestResult(
         state=state,
         setup=None,
+    )
+
+
+def detect_break_and_retest_signal(
+    candles: list[Candle],
+    swings: list[SwingPoint],
+    bos_events: list[BreakOfStructure],
+) -> BreakAndRetestResult:
+    """
+    Run the independent Break & Retest lifecycle through to confirmation.
+
+    Adds the shared candlestick confirmation step after a valid retest:
+    entry = confirmation close, stop = the lowest low (bullish) or highest
+    high (bearish) of the retest and confirmation candles, no take profit.
+    """
+    result = detect_break_and_retest(candles, swings, bos_events)
+
+    if result.setup is None:
+        return result
+
+    if result.state not in (
+        BreakAndRetestState.WAITING_FOR_BULLISH_CONFIRMATION,
+        BreakAndRetestState.WAITING_FOR_BEARISH_CONFIRMATION,
+    ):
+        return result
+
+    setup = result.setup
+    confirmation = detect_pattern_confirmation(
+        candles,
+        setup.direction,
+        setup.break_level,
+        setup.retest_index + 1,
+    )
+
+    if confirmation is None:
+        return result
+
+    retest_candle = setup.retest.candle
+
+    if setup.direction == "bullish":
+        stop_loss = min(retest_candle.low, confirmation.candle.low)
+    else:
+        stop_loss = max(retest_candle.high, confirmation.candle.high)
+
+    signal = BreakAndRetestSignal(
+        direction=setup.direction,
+        entry_price=confirmation.candle.close,
+        stop_loss=stop_loss,
+        take_profit=None,
+        break_level=setup.break_level,
+        confirmation_pattern=confirmation.pattern,
+        reason=(
+            f"Independent break confirmed, level {setup.break_level} "
+            f"retested, and {confirmation.pattern} confirmed the retest."
+        ),
+        structure_scope=setup.structure_scope,
+    )
+
+    return BreakAndRetestResult(
+        state=BreakAndRetestState.CONFIRMED,
+        setup=setup,
+        signal=signal,
     )
