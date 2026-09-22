@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.market.registry import shutdown_providers
-from app.routers import auth, market
+from app.routers import auth, market, scanner
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(market.router)
+app.include_router(scanner.router)
 
 
 @app.get("/health")
