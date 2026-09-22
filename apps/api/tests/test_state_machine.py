@@ -1,3 +1,5 @@
+import pytest
+
 from app.scanner.models import ScannerStrategy
 from app.scanner.state_machine import (
     Scope,
@@ -140,3 +142,183 @@ def test_a_new_scope_appearing_mid_stream_does_not_disturb_existing_ones():
     assert eur.state is SetupState.BREAK_DETECTED
     assert len(eur.history) == 1
     assert registry.scopes() == [EURUSD, GBPUSD]
+
+
+# --- Level loss and expiry ---
+
+from datetime import datetime, timezone
+
+from app.scanner.level_loss import LevelLossPolicy
+
+STRICT = LevelLossPolicy.STRICT
+TOLERANT = LevelLossPolicy.TOLERANT
+BASE_TS = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+def make_candle(close):
+    from app.market.models import Candle
+
+    return Candle(
+        timestamp=BASE_TS,
+        open=close,
+        high=close + 1.0,
+        low=close - 1.0,
+        close=close,
+        volume=1.0,
+    )
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        SetupState.BREAK_DETECTED,
+        SetupState.RETEST_WAITING,
+        SetupState.CONFIRMATION_WAITING,
+        SetupState.VALID_SETUP,
+    ],
+)
+def test_check_level_loss_invalidates_an_at_risk_state(state):
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.state = state
+
+    invalidated = machine.check_level_loss(
+        make_candle(99.0), level=100.0, direction="bullish", policy=STRICT
+    )
+
+    assert invalidated is True
+    assert machine.state is SetupState.INVALIDATED
+    assert machine.history[-1].reason == "level 100.0 lost under strict policy"
+    assert machine.history[-1].previous_state == state
+
+
+@pytest.mark.parametrize(
+    "state", [SetupState.IDLE, SetupState.TRIGGERED, SetupState.EXPIRED]
+)
+def test_check_level_loss_is_a_no_op_outside_at_risk_states(state):
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.state = state
+
+    invalidated = machine.check_level_loss(
+        make_candle(1.0), level=100.0, direction="bullish", policy=STRICT
+    )
+
+    assert invalidated is False
+    assert machine.state is state
+    assert machine.history == []
+
+
+def test_check_level_loss_does_nothing_when_the_level_holds():
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.state = SetupState.RETEST_WAITING
+
+    invalidated = machine.check_level_loss(
+        make_candle(105.0), level=100.0, direction="bullish", policy=STRICT
+    )
+
+    assert invalidated is False
+    assert machine.state is SetupState.RETEST_WAITING
+    assert machine.history == []
+
+
+def test_check_level_loss_respects_tolerance():
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.state = SetupState.RETEST_WAITING
+
+    still_within_tolerance = machine.check_level_loss(
+        make_candle(99.0),
+        level=100.0,
+        direction="bullish",
+        policy=TOLERANT,
+        tolerance=2.0,
+    )
+    assert still_within_tolerance is False
+    assert machine.state is SetupState.RETEST_WAITING
+
+    beyond_tolerance = machine.check_level_loss(
+        make_candle(97.0),
+        level=100.0,
+        direction="bullish",
+        policy=TOLERANT,
+        tolerance=2.0,
+    )
+    assert beyond_tolerance is True
+    assert machine.state is SetupState.INVALIDATED
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        SetupState.BREAK_DETECTED,
+        SetupState.RETEST_WAITING,
+        SetupState.CONFIRMATION_WAITING,
+    ],
+)
+def test_check_expiry_expires_a_stalled_waiting_state(state):
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.transition(state, event="entered", reason="test", candle_index=10)
+
+    not_yet = machine.check_expiry(candle_index=29, max_bars=20)
+    assert not_yet is False
+    assert machine.state is state
+
+    expired = machine.check_expiry(candle_index=30, max_bars=20)
+    assert expired is True
+    assert machine.state is SetupState.EXPIRED
+    assert machine.history[-1].reason == "expired after 20 candles without progress"
+
+
+def test_check_expiry_does_not_apply_to_valid_setup():
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.transition(
+        SetupState.VALID_SETUP, event="confirmed", reason="test", candle_index=0
+    )
+
+    expired = machine.check_expiry(candle_index=100, max_bars=20)
+
+    assert expired is False
+    assert machine.state is SetupState.VALID_SETUP
+
+
+def test_check_expiry_does_nothing_without_a_known_entry_index():
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.state = SetupState.RETEST_WAITING  # bypasses transition(), no index set
+
+    expired = machine.check_expiry(candle_index=1000, max_bars=20)
+
+    assert expired is False
+    assert machine.state is SetupState.RETEST_WAITING
+
+
+def test_transition_without_candle_index_leaves_state_entered_at_unchanged():
+    registry = StateMachineRegistry()
+    machine = registry.get(EURUSD)
+    machine.transition(SetupState.BREAK_DETECTED, event="a", reason="b", candle_index=5)
+    machine.transition(SetupState.RETEST_WAITING, event="c", reason="d")
+
+    assert machine.state_entered_at == 5
+    assert machine.check_expiry(candle_index=24, max_bars=20) is False
+    assert machine.check_expiry(candle_index=25, max_bars=20) is True
+
+
+def test_level_loss_and_expiry_remain_isolated_across_scopes():
+    registry = StateMachineRegistry()
+    eur = registry.get(EURUSD)
+    gbp = registry.get(GBPUSD)
+
+    eur.transition(SetupState.RETEST_WAITING, event="a", reason="b", candle_index=0)
+    gbp.transition(SetupState.RETEST_WAITING, event="a", reason="b", candle_index=0)
+
+    eur.check_level_loss(
+        make_candle(1.0), level=100.0, direction="bullish", policy=STRICT
+    )
+
+    assert eur.state is SetupState.INVALIDATED
+    assert gbp.state is SetupState.RETEST_WAITING
+    assert len(gbp.history) == 1  # only its own RETEST_WAITING entry, no invalidation
