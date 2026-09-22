@@ -103,7 +103,7 @@ def test_at_least_one_strategy_is_required():
 @pytest.mark.parametrize(
     "strategies, named",
     [
-        pytest.param((ScannerStrategy.BREAK_AND_RETEST,), "break_and_retest", id="single"),
+        pytest.param((ScannerStrategy.LIQUIDITY_SWEEP,), "liquidity_sweep", id="single"),
         pytest.param((TC, ScannerStrategy.LIQUIDITY_SWEEP), "liquidity_sweep", id="mixed"),
     ],
 )
@@ -149,3 +149,25 @@ def test_forming_candles_are_not_analysed(monkeypatch):
     result = run_strategies(request(), closed + [forming])
     assert captured["candles"] == closed
     assert result == ()
+
+
+def bullish_break_and_retest_candles():
+    """Same zigzag; candle 17 becomes a bullish marubozu confirming the
+    111.0 retest -- Break & Retest needs no strong break candle."""
+    rows = [(p, p, p + 1.0, p - 1.0) for p in UP_PRICES]
+    rows[17] = (110.6, 112.4, 112.5, 110.5)
+    return candles_from(rows)
+
+
+def test_end_to_end_break_and_retest_signal():
+    signals = run_strategies(
+        request(ScannerStrategy.BREAK_AND_RETEST), bullish_break_and_retest_candles()
+    )
+    assert len(signals) == 1
+    signal = signals[0]
+    assert signal.strategy == ScannerStrategy.BREAK_AND_RETEST
+    assert signal.direction == "bullish"
+    assert signal.entry_price == 112.4
+    assert signal.stop_loss == 110.5
+    assert signal.take_profit is None
+    assert signal.structure_scope == StructureScope.EXTERNAL
