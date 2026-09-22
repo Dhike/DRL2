@@ -100,16 +100,34 @@ def test_at_least_one_strategy_is_required():
         run_strategies(empty, setup_candles())
 
 
-@pytest.mark.parametrize(
-    "strategies, named",
-    [
-        pytest.param((ScannerStrategy.LIQUIDITY_SWEEP,), "liquidity_sweep", id="single"),
-        pytest.param((TC, ScannerStrategy.LIQUIDITY_SWEEP), "liquidity_sweep", id="mixed"),
-    ],
-)
-def test_unavailable_strategies_raise_a_clear_error(strategies, named):
-    with pytest.raises(ValueError, match=f"not available yet: {named}"):
-        run_strategies(request(*strategies), setup_candles())
+def test_missing_runner_raises_a_clear_error(monkeypatch):
+    """
+    All three real strategies are wired up, so there is no fourth
+    ScannerStrategy value left to use as an "unsupported" example. This
+    tests the same code path -- a ScannerStrategy missing from _RUNNERS --
+    by removing a real entry for the duration of the test instead.
+    """
+    import app.scanner.strategies as strategies_module
+
+    monkeypatch.delitem(
+        strategies_module._RUNNERS, ScannerStrategy.LIQUIDITY_SWEEP
+    )
+
+    with pytest.raises(ValueError, match="not available yet: liquidity_sweep"):
+        run_strategies(request(ScannerStrategy.LIQUIDITY_SWEEP), setup_candles())
+
+
+def test_missing_runner_among_several_still_names_it(monkeypatch):
+    import app.scanner.strategies as strategies_module
+
+    monkeypatch.delitem(
+        strategies_module._RUNNERS, ScannerStrategy.LIQUIDITY_SWEEP
+    )
+
+    with pytest.raises(ValueError, match="not available yet: liquidity_sweep"):
+        run_strategies(
+            request(TC, ScannerStrategy.LIQUIDITY_SWEEP), setup_candles()
+        )
 
 
 def test_a_strategy_requested_twice_runs_once():
