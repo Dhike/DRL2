@@ -62,6 +62,7 @@ class SetupStateMachine:
     state: SetupState = SetupState.IDLE
     history: list[TransitionRecord] = field(default_factory=list)
     state_entered_at: int | None = None
+    context: object | None = None
 
     def transition(
         self,
