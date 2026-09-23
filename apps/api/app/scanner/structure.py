@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from app.market.models import Candle
@@ -279,6 +279,39 @@ def detect_choch(
                 )
 
     return None
+
+
+def detect_choch_after_protection(
+    candles: list[Candle],
+    external: ExternalStructure,
+) -> ChangeOfCharacter | None:
+    """detect_choch, but only considers candles AFTER the protected
+    level's own swing formed.
+
+    detect_choch itself is a low-level primitive with a deliberately
+    simple contract (first close beyond the given level, over whatever
+    candle list it is given -- see test_choch_returns_the_first_break,
+    which intentionally checks a break before the protected swing's own
+    index using an isolated candle list). That contract is correct and
+    already relied upon; it is not changed here.
+
+    The actual issue only exists at call sites that hand detect_choch a
+    REAL, full candle history: candles from before the protected level
+    even existed can produce a false "break" of a level that had no
+    meaning yet. This wrapper slices the candle list to start only
+    after the protected swing's index, then translates the resulting
+    candle_index back to the original list's numbering.
+    """
+    protected = external.protected_high or external.protected_low
+    if protected is None:
+        return detect_choch(candles, external)
+
+    start = protected.index + 1
+    result = detect_choch(candles[start:], external)
+    if result is None:
+        return result
+
+    return replace(result, candle_index=result.candle_index + start)
 
 
 def detect_bos(

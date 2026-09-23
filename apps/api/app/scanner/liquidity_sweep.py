@@ -10,7 +10,7 @@ from app.scanner.structure import (
     SwingPoint,
     SwingType,
     detect_bos,
-    detect_choch,
+    detect_choch_after_protection,
 )
 
 
@@ -225,7 +225,7 @@ def detect_liquidity_sweep_signal(
     (its high for a buy-side sweep, its low for a sell-side sweep), no
     take profit. Confirmation is checked starting on the BOS candle itself.
     """
-    choch = detect_choch(candles, external)
+    choch = detect_choch_after_protection(candles, external)
 
     if choch is None:
         return None

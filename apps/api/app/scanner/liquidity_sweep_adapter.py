@@ -54,7 +54,7 @@ from app.scanner.liquidity_sweep import (
     detect_post_choch_bos,
 )
 from app.scanner.state_machine import SetupState, SetupStateMachine
-from app.scanner.structure import ExternalStructure, StructureScope, detect_choch
+from app.scanner.structure import ExternalStructure, StructureScope, detect_choch_after_protection
 from app.scanner.structure_tracker import StructureTracker
 
 DEFAULT_MAX_EXPIRY_BARS = 20
@@ -105,7 +105,7 @@ def advance_liquidity_sweep(
     swings = list(analysis.swings)
 
     if machine.state == SetupState.IDLE:
-        choch = detect_choch(candles, external)
+        choch = detect_choch_after_protection(candles, external)
         if choch is None:
             return
 
