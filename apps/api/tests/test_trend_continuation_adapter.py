@@ -112,3 +112,145 @@ def test_resolved_states_are_left_alone():
 
     assert machine.state is SetupState.VALID_SETUP
     assert len(machine.history) == history_len
+
+
+# --- Level loss and expiry, tested directly against the adapter's
+# BREAK_DETECTED / RETEST_WAITING branches. These checks only ever read
+# machine.context's break_level/direction, so we construct that context
+# directly (same principle as Step 89's direct-state-setting tests)
+# rather than fighting a naturalistic fixture through every BOS
+# alternation rule just to reach these states causally.
+
+from app.market.models import Candle
+from app.scanner.structure import BreakOfStructure, StructureScope
+from app.scanner.trend_continuation import TrendContinuationBreak, TrendContinuationRetest
+
+
+def _break_candle():
+    return Candle(
+        timestamp=BASE + timedelta(hours=10), open=110, high=112, low=109, close=111.5,
+        volume=1.0,
+    )
+
+
+def _fake_break(level=111.0, direction="bullish"):
+    return TrendContinuationBreak(
+        direction=direction,
+        break_level=level,
+        candle_index=10,
+        candle=_break_candle(),
+        bos=BreakOfStructure(direction, level, 10, BASE + timedelta(hours=10)),
+        structure_scope=StructureScope.EXTERNAL,
+    )
+
+
+def _fake_retest(level=111.0, direction="bullish"):
+    return TrendContinuationRetest(
+        direction=direction,
+        break_level=level,
+        break_index=10,
+        retest_index=14,
+        candle=_break_candle(),
+        bos=BreakOfStructure(direction, level, 10, BASE + timedelta(hours=10)),
+        structure_scope=StructureScope.EXTERNAL,
+    )
+
+
+def _tracker_of(n):
+    tracker = StructureTracker()
+    for i in range(n):
+        tracker.add_candle(
+            Candle(
+                timestamp=BASE + timedelta(hours=i),
+                open=111, high=112, low=110, close=111, volume=1.0,
+            )
+        )
+    return tracker
+
+
+def test_level_loss_invalidates_from_break_detected():
+    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine.state = SetupState.BREAK_DETECTED
+    machine.context = _fake_break()
+    machine.state_entered_at = 10
+    tracker = _tracker_of(11)
+
+    losing_candle = Candle(
+        timestamp=BASE + timedelta(hours=11), open=110, high=110.5, low=105, close=105,
+        volume=1.0,
+    )
+    tracker.add_candle(losing_candle)
+    advance_trend_continuation(machine, tracker, losing_candle, 11)
+
+    assert machine.state is SetupState.INVALIDATED
+    assert "level 111.0 lost" in machine.history[-1].reason
+
+
+def test_level_loss_invalidates_from_retest_waiting():
+    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine.state = SetupState.RETEST_WAITING
+    machine.context = _fake_retest()
+    machine.state_entered_at = 14
+    tracker = _tracker_of(15)
+
+    losing_candle = Candle(
+        timestamp=BASE + timedelta(hours=15), open=110, high=110.5, low=105, close=105,
+        volume=1.0,
+    )
+    tracker.add_candle(losing_candle)
+    advance_trend_continuation(machine, tracker, losing_candle, 15)
+
+    assert machine.state is SetupState.INVALIDATED
+    assert "level 111.0 lost" in machine.history[-1].reason
+
+
+def test_no_invalidation_while_the_level_holds():
+    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine.state = SetupState.BREAK_DETECTED
+    machine.context = _fake_break()
+    machine.state_entered_at = 10
+    tracker = _tracker_of(11)
+
+    holding_candle = Candle(
+        timestamp=BASE + timedelta(hours=11), open=111.5, high=112, low=111.3, close=111.8,
+        volume=1.0,
+    )
+    tracker.add_candle(holding_candle)
+    advance_trend_continuation(machine, tracker, holding_candle, 11)
+
+    assert machine.state is SetupState.BREAK_DETECTED
+
+
+def test_expiry_fires_after_max_bars_from_break_detected():
+    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine.state = SetupState.BREAK_DETECTED
+    machine.context = _fake_break()
+    machine.state_entered_at = 10
+    tracker = _tracker_of(30)
+
+    stale_candle = Candle(
+        timestamp=BASE + timedelta(hours=30), open=111, high=112, low=110.5, close=111.2,
+        volume=1.0,
+    )
+    tracker.add_candle(stale_candle)
+    advance_trend_continuation(machine, tracker, stale_candle, 30, max_expiry_bars=20)
+
+    assert machine.state is SetupState.EXPIRED
+    assert "expired after 20 candles without a retest" in machine.history[-1].reason
+
+
+def test_no_expiry_before_max_bars_from_retest_waiting():
+    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine.state = SetupState.RETEST_WAITING
+    machine.context = _fake_retest()
+    machine.state_entered_at = 14
+    tracker = _tracker_of(33)
+
+    not_yet_candle = Candle(
+        timestamp=BASE + timedelta(hours=33), open=111, high=112, low=110.5, close=111.2,
+        volume=1.0,
+    )
+    tracker.add_candle(not_yet_candle)
+    advance_trend_continuation(machine, tracker, not_yet_candle, 33, max_expiry_bars=20)
+
+    assert machine.state is SetupState.RETEST_WAITING
