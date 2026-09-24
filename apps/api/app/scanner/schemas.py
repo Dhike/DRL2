@@ -45,3 +45,17 @@ class ScannerSignalOut(BaseModel):
 class ScannerScanResult(BaseModel):
     status: ScannerStatus
     signals: list[ScannerSignalOut]
+
+class ScannerTransitionOut(BaseModel):
+    previous_state: str
+    reason: str
+    new_state: str
+
+
+class ScannerLiveStateOut(BaseModel):
+    symbol: str
+    timeframe: str
+    strategy: ScannerStrategy
+    state: str
+    history: list[ScannerTransitionOut]
+

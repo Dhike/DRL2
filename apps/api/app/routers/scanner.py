@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.deps import get_current_user
+from app.market.models import Timeframe
 from app.market.provider import MarketDataError
 from app.market.service import (
     MarketService,
@@ -10,8 +11,16 @@ from app.market.service import (
     get_market_service,
 )
 from app.models import User
-from app.scanner.models import ScannerRequest, ScannerStatus
-from app.scanner.schemas import ScannerScanRequest, ScannerScanResult, ScannerSignalOut
+from app.scanner.background import get_live_scanner
+from app.scanner.models import ScannerRequest, ScannerStatus, ScannerStrategy
+from app.scanner.schemas import (
+    ScannerLiveStateOut,
+    ScannerScanRequest,
+    ScannerScanResult,
+    ScannerSignalOut,
+    ScannerTransitionOut,
+)
+from app.scanner.state_machine import Scope
 from app.scanner.strategies import run_strategies
 
 logger = logging.getLogger("drl2.scanner")
@@ -60,3 +69,37 @@ async def scan(
         status=ScannerStatus.COMPLETED,
         signals=[ScannerSignalOut.from_signal(s) for s in signals],
     )
+
+@router.get("/live", response_model=ScannerLiveStateOut)
+async def get_live_state(
+    symbol: str,
+    timeframe: Timeframe,
+    strategy: ScannerStrategy,
+    _: User = Depends(get_current_user),
+) -> ScannerLiveStateOut:
+    scanner = get_live_scanner()
+    scope = Scope(symbol=symbol, timeframe=timeframe.value, strategy=strategy)
+
+    if scope not in scanner.known_scopes():
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "This symbol/timeframe/strategy has not been scanned yet",
+        )
+
+    machine = scanner.state_of(symbol, timeframe.value, strategy)
+
+    return ScannerLiveStateOut(
+        symbol=symbol,
+        timeframe=timeframe.value,
+        strategy=strategy,
+        state=machine.state.value,
+        history=[
+            ScannerTransitionOut(
+                previous_state=record.previous_state.value,
+                reason=record.reason,
+                new_state=record.new_state.value,
+            )
+            for record in machine.history
+        ],
+    )
+
