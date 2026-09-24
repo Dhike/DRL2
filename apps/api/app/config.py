@@ -1,6 +1,8 @@
 from typing import Self
 
 from pydantic import model_validator
+from app.market.models import Timeframe
+from app.scanner.models import ScannerStrategy
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _DEV_JWT_SECRET = "dev-only-secret-change-me-before-production-0123456789"
@@ -27,6 +29,15 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_use_starttls: bool = True
     market_provider: str = "gate"
+    scanner_enabled: bool = False
+    scanner_poll_seconds: int = 60
+    scanner_symbols: list[str] = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+    scanner_timeframe: str = "1h"
+    scanner_strategies: list[str] = [
+        "trend_continuation",
+        "break_and_retest",
+        "liquidity_sweep",
+    ]
 
     @model_validator(mode="after")
     def _validate_settings(self) -> Self:
@@ -46,6 +57,19 @@ class Settings(BaseSettings):
         if self.market_provider not in _MARKET_PROVIDERS:
             raise ValueError(
                 "DRL_MARKET_PROVIDER must be one of: " + ", ".join(_MARKET_PROVIDERS)
+            )
+        valid_timeframes = {tf.value for tf in Timeframe}
+        if self.scanner_timeframe not in valid_timeframes:
+            raise ValueError(
+                "DRL_SCANNER_TIMEFRAME must be one of: "
+                + ", ".join(sorted(valid_timeframes))
+            )
+        valid_strategies = {s.value for s in ScannerStrategy}
+        invalid = set(self.scanner_strategies) - valid_strategies
+        if invalid:
+            raise ValueError(
+                "DRL_SCANNER_STRATEGIES contains unknown strategies: "
+                + ", ".join(sorted(invalid))
             )
         return self
 

@@ -6,12 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.market.registry import shutdown_providers
+from app.scanner.background import start_scanner_loop, stop_scanner_loop
 from app.routers import auth, market, scanner
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    start_scanner_loop()
     yield
+    await stop_scanner_loop()
     await shutdown_providers()
 
 
