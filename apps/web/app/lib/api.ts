@@ -171,3 +171,67 @@ export function getCandles(
   const query = new URLSearchParams({ symbol, timeframe, limit: String(limit) });
   return request<CandlesResponse>(`/market/candles?${query.toString()}`);
 }
+
+export type ScannerSignal = {
+  market: string;
+  symbol: string;
+  timeframe: string;
+  strategy: string;
+  direction: string;
+  entry_price: number;
+  stop_loss: number;
+  take_profit: number | null;
+  score: number;
+  reason: string;
+  structure_scope: string;
+};
+
+export type ScannerScanResult = {
+  status: string;
+  signals: ScannerSignal[];
+};
+
+export function scanMarket(
+  symbol: string,
+  timeframe: string,
+  strategies: string[],
+  scope?: string,
+): Promise<ScannerScanResult> {
+  return request<ScannerScanResult>("/scanner/scan", {
+    method: "POST",
+    body: JSON.stringify({
+      symbol,
+      timeframe,
+      strategies,
+      scope: scope ?? null,
+    }),
+  });
+}
+
+export type ScannerTransition = {
+  previous_state: string;
+  reason: string;
+  new_state: string;
+};
+
+export type ScannerLiveState = {
+  symbol: string;
+  timeframe: string;
+  strategy: string;
+  state: string;
+  history: ScannerTransition[];
+};
+
+export async function getLiveState(
+  symbol: string,
+  timeframe: string,
+  strategy: string,
+): Promise<ScannerLiveState | null> {
+  const query = new URLSearchParams({ symbol, timeframe, strategy });
+  try {
+    return await request<ScannerLiveState>(`/scanner/live?${query.toString()}`);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
