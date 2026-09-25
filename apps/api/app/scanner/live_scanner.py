@@ -25,9 +25,10 @@ from app.scanner.break_and_retest_adapter import advance_break_and_retest
 from app.scanner.level_loss import LevelLossPolicy
 from app.scanner.liquidity_sweep_adapter import advance_liquidity_sweep
 from app.scanner.models import ScannerStrategy
-from app.scanner.state_machine import Scope, StateMachineRegistry
+from app.scanner.state_machine import Scope, SetupState, StateMachineRegistry
 from app.scanner.structure import StructureScope
 from app.scanner.structure_tracker import StructureTracker
+from app.scanner.trigger import check_stop_hit
 from app.scanner.trend_continuation_adapter import advance_trend_continuation
 
 DEFAULT_MAX_EXPIRY_BARS = 20
@@ -69,6 +70,11 @@ class LiveScanner:
 
         for strategy in strategies:
             machine = self._registry.get(Scope(symbol, timeframe, strategy))
+            # A setup already VALID_SETUP going into this candle can have
+            # its stop checked; a setup that only BECOMES VALID_SETUP on
+            # this candle must not, since its own confirmation candle is
+            # what the stop level was derived from in the first place.
+            was_already_valid = machine.state is SetupState.VALID_SETUP
 
             if strategy == ScannerStrategy.TREND_CONTINUATION:
                 advance_trend_continuation(
@@ -88,6 +94,9 @@ class LiveScanner:
                 )
             else:
                 raise ValueError(f"Unknown strategy: {strategy!r}")
+
+            if was_already_valid:
+                check_stop_hit(machine, candle, candle_index)
 
     def state_of(self, symbol: str, timeframe: str, strategy: ScannerStrategy):
         return self._registry.get(Scope(symbol, timeframe, strategy))
