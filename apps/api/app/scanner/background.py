@@ -37,11 +37,15 @@ class ScannerLoop:
         timeframe: str,
         strategies: list[str],
         poll_seconds: int,
+        risk_reward: float | None = None,
+        tie_break: str = "stop_first",
     ) -> None:
         self._symbols = symbols
         self._timeframe = Timeframe(timeframe)
         self._strategies = [_STRATEGY_BY_VALUE[s] for s in strategies]
         self._poll_seconds = poll_seconds
+        self._risk_reward = risk_reward
+        self._tie_break = tie_break
         self._last_seen: dict[str, object] = {}
         self._task: asyncio.Task | None = None
 
@@ -65,7 +69,8 @@ class ScannerLoop:
 
             for candle in new_candles:
                 _scanner.process_candle(
-                    symbol, self._timeframe.value, candle, self._strategies
+                    symbol, self._timeframe.value, candle, self._strategies,
+                    risk_reward=self._risk_reward, tie_break=self._tie_break,
                 )
             self._last_seen[symbol] = new_candles[-1].timestamp
 
@@ -107,6 +112,8 @@ def start_scanner_loop() -> None:
         timeframe=settings.scanner_timeframe,
         strategies=settings.scanner_strategies,
         poll_seconds=settings.scanner_poll_seconds,
+        risk_reward=settings.scanner_risk_reward,
+        tie_break=settings.scanner_tie_break,
     )
     _loop.start()
 

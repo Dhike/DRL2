@@ -28,7 +28,7 @@ from app.scanner.models import ScannerStrategy
 from app.scanner.state_machine import Scope, SetupState, StateMachineRegistry
 from app.scanner.structure import StructureScope
 from app.scanner.structure_tracker import StructureTracker
-from app.scanner.trigger import check_stop_hit
+from app.scanner.trigger import check_trigger
 from app.scanner.trend_continuation_adapter import advance_trend_continuation
 
 DEFAULT_MAX_EXPIRY_BARS = 20
@@ -57,6 +57,8 @@ class LiveScanner:
         policy: LevelLossPolicy = LevelLossPolicy.STRICT,
         tolerance: float = 0.0,
         max_expiry_bars: int = DEFAULT_MAX_EXPIRY_BARS,
+        risk_reward: float | None = None,
+        tie_break: str = "stop_first",
     ) -> None:
         """Advance one new candle for `symbol`/`timeframe` across the
         requested `strategies`. Each strategy has its own isolated
@@ -96,7 +98,9 @@ class LiveScanner:
                 raise ValueError(f"Unknown strategy: {strategy!r}")
 
             if was_already_valid:
-                check_stop_hit(machine, candle, candle_index)
+                check_trigger(
+                    machine, candle, candle_index, risk_reward, tie_break
+                )
 
     def state_of(self, symbol: str, timeframe: str, strategy: ScannerStrategy):
         return self._registry.get(Scope(symbol, timeframe, strategy))

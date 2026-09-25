@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     market_provider: str = "gate"
     scanner_enabled: bool = False
     scanner_poll_seconds: int = 60
+    scanner_risk_reward: float | None = 2.0
+    scanner_tie_break: str = "stop_first"
     scanner_symbols: list[str] = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
     scanner_timeframe: str = "1h"
     scanner_strategies: list[str] = [
@@ -71,6 +73,12 @@ class Settings(BaseSettings):
                 "DRL_SCANNER_STRATEGIES contains unknown strategies: "
                 + ", ".join(sorted(invalid))
             )
+        if self.scanner_tie_break not in ("stop_first", "target_first"):
+            raise ValueError(
+                "DRL_SCANNER_TIE_BREAK must be 'stop_first' or 'target_first'"
+            )
+        if self.scanner_risk_reward is not None and self.scanner_risk_reward <= 0:
+            raise ValueError("DRL_SCANNER_RISK_REWARD must be positive if set")
         return self
 
 

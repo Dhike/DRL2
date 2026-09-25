@@ -8,6 +8,7 @@ from app.market.service import MarketService
 from app.scanner.background import ScannerLoop
 from app.scanner.live_scanner import LiveScanner
 from app.scanner.models import ScannerStrategy
+from app.scanner.state_machine import SetupState
 
 BASE = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -191,3 +192,71 @@ def test_start_and_stop_cycle(monkeypatch):
         assert loop._task is None
 
     asyncio.run(run())
+
+
+def test_poll_passes_risk_reward_through_to_a_real_take_profit_trigger(monkeypatch):
+    """
+    End-to-end proof the wiring works, using the real per-candle trace
+    confirmed by dry run: recognition happens at candles 18/19/20
+    (BREAK_DETECTED/RETEST_WAITING/VALID_SETUP), and this fixture's own
+    candle 21 (high=120.5) already clears the 1:2 take-profit target
+    (116.2, from entry=112.4/stop=110.5) on the very next candle -- no
+    separately-appended "target hit" candle is needed or reached.
+
+    Routed through a minimal fake service with NO caching (same fix as
+    test_second_poll_adds_only_genuinely_new_candles needed earlier):
+    the real MarketService's CandleCache (120s TTL for 1h candles) would
+    return the first, stale 21-candle response on this test's second,
+    near-instant poll, masking the growth to 29 candles this test
+    depends on.
+    """
+    UP_PRICES = [
+        100, 102.5, 105, 107.5, 110, 108.5, 107, 105.5, 104, 107,
+        110, 113, 116, 114, 112, 110, 108, 111.5, 115, 118.5,
+        122, 119.5, 117, 114.5, 112, 113.5, 115, 116.5, 118,
+    ]
+    rows = [(p, p, p + 1.0, p - 1.0) for p in UP_PRICES]
+    rows[11] = (112.3, 113.8, 114.0, 112.0)
+    rows[17] = (110.6, 112.4, 112.5, 110.5)
+    candles = [
+        Candle(
+            timestamp=BASE + timedelta(hours=i),
+            open=o, high=h, low=low, close=c, volume=1.0, closed=True,
+        )
+        for i, (o, c, h, low) in enumerate(rows)
+    ]
+
+    class GrowingFakeService:
+        def __init__(self, candles):
+            self.candles = candles
+
+        async def get_candles(self, symbol, timeframe, limit=200, closed_only=False):
+            return self.candles
+
+    fake_service = GrowingFakeService(candles[:21])  # up through VALID_SETUP at 20
+    monkeypatch.setattr(
+        "app.scanner.background.get_market_service", lambda: fake_service
+    )
+
+    loop = ScannerLoop(
+        symbols=["BTC/USDT"], timeframe="1h",
+        strategies=["trend_continuation"], poll_seconds=60,
+        risk_reward=2.0, tie_break="stop_first",
+    )
+    import app.scanner.background as bg
+    bg._scanner = LiveScanner()
+
+    asyncio.run(loop._poll_once())
+    machine = bg._scanner.state_of(
+        "BTC/USDT", "1h", ScannerStrategy.TREND_CONTINUATION
+    )
+    assert machine.state is SetupState.VALID_SETUP
+
+    fake_service.candles = candles  # adds candle 21, high=120.5 hits target
+    asyncio.run(loop._poll_once())
+
+    machine = bg._scanner.state_of(
+        "BTC/USDT", "1h", ScannerStrategy.TREND_CONTINUATION
+    )
+    assert machine.state is SetupState.TRIGGERED
+    assert "take-profit" in machine.history[-1].reason
