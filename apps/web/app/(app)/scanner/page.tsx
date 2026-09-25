@@ -69,6 +69,35 @@ export default function ScannerPage() {
     Record<string, ScannerLiveState | null>
   >({});
 
+
+  useEffect(() => {
+    if (strategies.length === 0) return undefined;
+    let cancelled = false;
+
+    async function poll() {
+      const entries = await Promise.all(
+        strategies.map(async (strategy) => {
+          try {
+            const state = await getLiveState(symbol, timeframe, strategy);
+            return [strategy, state] as const;
+          } catch {
+            return [strategy, null] as const;
+          }
+        }),
+      );
+      if (!cancelled) {
+        setLiveStates(Object.fromEntries(entries));
+      }
+    }
+
+    poll();
+    const interval = setInterval(poll, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [symbol, timeframe, strategies]);
+
   useEffect(() => {
     let cancelled = false;
     getCatalog()
