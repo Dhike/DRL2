@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import datetime, timedelta, timezone
 
 from app.market.models import Candle
@@ -160,3 +162,107 @@ def test_resolved_states_other_than_valid_setup_are_untouched():
         hit = check_stop_hit(machine, make_candle(low=1.0), 5)
         assert hit is False
         assert machine.state is state
+
+
+# --- Take-profit hit + combined trigger check with tie-break ---
+
+from app.scanner.trigger import check_target_hit, check_trigger
+
+
+def _bullish_signal(entry=112.0, stop=110.0):
+    return BreakAndRetestSignal(
+        direction="bullish", entry_price=entry, stop_loss=stop, take_profit=None,
+        break_level=111.0, confirmation_pattern="x", reason="x", structure_scope=EXT,
+    )
+
+
+def _bearish_signal(entry=98.0, stop=100.0):
+    return LiquiditySweepSignal(
+        direction="bearish", entry_price=entry, stop_loss=stop, take_profit=None,
+        swept_level=99.0, confirmation_pattern="x", reason="x", structure_scope=EXT,
+    )
+
+
+def test_target_hit_bullish_default_ratio():
+    # entry=112, stop=110, risk=2; 1:2 target = 116
+    machine = SetupStateMachine(scope(ScannerStrategy.BREAK_AND_RETEST))
+    machine.state = SetupState.VALID_SETUP
+    machine.context = _bullish_signal()
+
+    hit = check_target_hit(machine, make_candle(high=116.1), 5, risk_reward=2.0)
+    assert hit is True
+    assert machine.state is SetupState.TRIGGERED
+    assert machine.history[-1].reason == "take-profit 116.0 hit"
+
+
+def test_target_not_hit_bullish():
+    machine = SetupStateMachine(scope(ScannerStrategy.BREAK_AND_RETEST))
+    machine.state = SetupState.VALID_SETUP
+    machine.context = _bullish_signal()
+
+    hit = check_target_hit(machine, make_candle(high=115.9), 5, risk_reward=2.0)
+    assert hit is False
+    assert machine.state is SetupState.VALID_SETUP
+
+
+def test_target_hit_bearish_custom_ratio():
+    # entry=98, stop=100, risk=2; 1:3 target = 98 - 2*3 = 92
+    machine = SetupStateMachine(scope(ScannerStrategy.LIQUIDITY_SWEEP))
+    machine.state = SetupState.VALID_SETUP
+    machine.context = _bearish_signal()
+
+    hit = check_target_hit(machine, make_candle(low=91.9), 5, risk_reward=3.0)
+    assert hit is True
+    assert machine.history[-1].reason == "take-profit 92.0 hit"
+
+
+def test_check_trigger_without_risk_reward_only_checks_stop():
+    machine = SetupStateMachine(scope(ScannerStrategy.BREAK_AND_RETEST))
+    machine.state = SetupState.VALID_SETUP
+    machine.context = _bullish_signal()
+
+    # A candle whose high would hit a 1:2 target, but risk_reward is None
+    # so no target is ever computed or checked -- stop is far away, so
+    # nothing should fire.
+    hit = check_trigger(machine, make_candle(low=111.0, high=120.0), 5)
+    assert hit is False
+    assert machine.state is SetupState.VALID_SETUP
+
+
+def test_check_trigger_stop_first_default_wins_on_simultaneous_hit():
+    """A wide candle whose wick spans both the stop and the target: with
+    the default stop_first tie-break, the stop must win."""
+    machine = SetupStateMachine(scope(ScannerStrategy.BREAK_AND_RETEST))
+    machine.state = SetupState.VALID_SETUP
+    machine.context = _bullish_signal()  # entry=112, stop=110, target(1:2)=116
+
+    wide_candle = make_candle(low=109.0, high=117.0)
+    hit = check_trigger(machine, wide_candle, 5, risk_reward=2.0)
+
+    assert hit is True
+    assert machine.state is SetupState.TRIGGERED
+    assert "stop-loss" in machine.history[-1].reason
+
+
+def test_check_trigger_target_first_when_requested():
+    machine = SetupStateMachine(scope(ScannerStrategy.BREAK_AND_RETEST))
+    machine.state = SetupState.VALID_SETUP
+    machine.context = _bullish_signal()
+
+    wide_candle = make_candle(low=109.0, high=117.0)
+    hit = check_trigger(
+        machine, wide_candle, 5, risk_reward=2.0, tie_break="target_first"
+    )
+
+    assert hit is True
+    assert machine.state is SetupState.TRIGGERED
+    assert "take-profit" in machine.history[-1].reason
+
+
+def test_check_trigger_unknown_tie_break_raises():
+    machine = SetupStateMachine(scope(ScannerStrategy.BREAK_AND_RETEST))
+    machine.state = SetupState.VALID_SETUP
+    machine.context = _bullish_signal()
+
+    with pytest.raises(ValueError, match="Unknown tie_break"):
+        check_trigger(machine, make_candle(low=1.0), 5, tie_break="sideways")
