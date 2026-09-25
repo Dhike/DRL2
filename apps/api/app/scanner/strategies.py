@@ -1,3 +1,4 @@
+import dataclasses
 from collections.abc import Callable
 
 from app.market.models import Candle
@@ -7,6 +8,7 @@ from app.scanner.structure import StructureScope
 from app.scanner.break_and_retest import detect_break_and_retest_signal
 from app.scanner.liquidity_sweep import detect_liquidity_sweep_signal
 from app.scanner.trend_continuation import detect_trend_continuation
+from app.scanner.risk import compute_take_profit
 
 # Scores are not defined yet; every signal carries this placeholder.
 UNSCORED = 0.0
@@ -15,6 +17,22 @@ StrategyRunner = Callable[
     [ScannerRequest, list[Candle], StructureAnalysis, StructureScope | None],
     ScannerSignal | None,
 ]
+
+
+def _with_take_profit(
+    signal: ScannerSignal, risk_reward: float | None
+) -> ScannerSignal:
+    """If the engine did not set a take_profit and a risk_reward ratio
+    was given, fill one in at a fixed R:R from the entry and stop.
+    Leaves an engine-provided take_profit untouched (none currently
+    set one, but this stays correct if that ever changes)."""
+    if signal.take_profit is not None or risk_reward is None:
+        return signal
+
+    take_profit = compute_take_profit(
+        signal.direction, signal.entry_price, signal.stop_loss, risk_reward
+    )
+    return dataclasses.replace(signal, take_profit=take_profit)
 
 
 def run_trend_continuation(
@@ -129,12 +147,16 @@ def run_strategies(
     request: ScannerRequest,
     candles: list[Candle],
     scope: StructureScope | None = None,
+    risk_reward: float | None = None,
 ) -> tuple[ScannerSignal, ...]:
     """Run the requested strategies on one symbol's candles.
 
     Only closed candles are used and the structure is analysed once for all
     strategies. `scope` optionally restricts setups to internal or external
-    structure.
+    structure. `risk_reward`, if given, fills in a fixed-ratio take_profit
+    for any signal the engine itself left with take_profit=None (every
+    engine currently always does); pass None (the default) to leave
+    take_profit as the engines produce it.
     """
     if not request.strategies:
         raise ValueError("At least one scanner strategy must be selected.")
@@ -151,6 +173,6 @@ def run_strategies(
     for strategy in dict.fromkeys(request.strategies):
         signal = _RUNNERS[strategy](request, closed, analysis, scope)
         if signal is not None:
-            signals.append(signal)
+            signals.append(_with_take_profit(signal, risk_reward))
 
     return tuple(signals)
