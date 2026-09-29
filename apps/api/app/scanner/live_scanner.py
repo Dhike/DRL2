@@ -29,6 +29,8 @@ from app.scanner.state_machine import Scope, SetupState, StateMachineRegistry
 from app.scanner.structure import StructureScope
 from app.scanner.structure_tracker import StructureTracker
 from app.scanner.trigger import check_trigger
+from app.scanner.poi_detection import detect_all_pois
+from app.scanner.poi_matching import POIMatch, match_poi
 from app.scanner.trend_continuation_adapter import advance_trend_continuation
 
 DEFAULT_MAX_EXPIRY_BARS = 20
@@ -39,6 +41,7 @@ class LiveScanner:
         self._trackers: dict[tuple[str, str], StructureTracker] = {}
         self._registry = StateMachineRegistry()
         self._candle_counts: dict[tuple[str, str], int] = {}
+        self._poi_matches: dict[Scope, list[POIMatch]] = {}
 
     def _tracker_for(self, symbol: str, timeframe: str) -> StructureTracker:
         key = (symbol, timeframe)
@@ -77,6 +80,7 @@ class LiveScanner:
             # this candle must not, since its own confirmation candle is
             # what the stop level was derived from in the first place.
             was_already_valid = machine.state is SetupState.VALID_SETUP
+            before_state = machine.state
 
             if strategy == ScannerStrategy.TREND_CONTINUATION:
                 advance_trend_continuation(
@@ -102,8 +106,26 @@ class LiveScanner:
                     machine, candle, candle_index, risk_reward, tie_break
                 )
 
+            if machine.state.value in ("retest_waiting", "valid_setup") and (
+                before_state != machine.state
+            ):
+                match_context = (
+                    "RETEST" if machine.state.value == "retest_waiting" else "CONFIRMATION"
+                )
+                bos_events = tuple(tracker.current_analysis().bos_events)
+                pois = detect_all_pois(tracker.candles, bos_events)
+                scope_key = Scope(symbol, timeframe, strategy)
+                matches = self._poi_matches.setdefault(scope_key, [])
+                for poi in pois:
+                    result = match_poi(poi, tracker.candles, candle_index, match_context)
+                    if result is not None:
+                        matches.append(result)
+
     def state_of(self, symbol: str, timeframe: str, strategy: ScannerStrategy):
         return self._registry.get(Scope(symbol, timeframe, strategy))
+
+    def poi_matches_for(self, symbol: str, timeframe: str, strategy: ScannerStrategy) -> list:
+        return self._poi_matches.get(Scope(symbol, timeframe, strategy), [])
 
     def known_scopes(self) -> list[Scope]:
         return self._registry.scopes()
