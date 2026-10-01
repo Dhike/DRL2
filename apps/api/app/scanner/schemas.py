@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from app.market.models import Timeframe
 from app.scanner.models import ScannerSignal, ScannerStatus, ScannerStrategy
 from app.scanner.structure import StructureScope
+from app.scanner.poi_matching import POIMatch, poi_zone
 
 
 class ScannerScanRequest(BaseModel):
@@ -52,10 +53,40 @@ class ScannerTransitionOut(BaseModel):
     new_state: str
 
 
+class POIMatchOut(BaseModel):
+    poi_type: str
+    direction: str | None
+    status: str
+    zone_low: float
+    zone_high: float
+    overlap: bool
+    near: bool
+    distance_atr: float | None
+    interaction: str
+    match_context: str
+
+    @classmethod
+    def from_match(cls, match: POIMatch) -> "POIMatchOut":
+        zone_low, zone_high = poi_zone(match.poi)
+        return cls(
+            poi_type=match.poi_type,
+            direction=match.direction.value if match.direction else None,
+            status=match.status.value,
+            zone_low=zone_low,
+            zone_high=zone_high,
+            overlap=match.overlap,
+            near=match.near,
+            distance_atr=match.distance_atr,
+            interaction=match.interaction,
+            match_context=match.match_context,
+        )
+
+
 class ScannerLiveStateOut(BaseModel):
     symbol: str
     timeframe: str
     strategy: ScannerStrategy
     state: str
     history: list[ScannerTransitionOut]
+    poi_matches: list[POIMatchOut]
 

@@ -14,6 +14,7 @@ from app.models import User
 from app.scanner.background import get_live_scanner
 from app.scanner.models import ScannerRequest, ScannerStatus, ScannerStrategy
 from app.scanner.schemas import (
+    POIMatchOut,
     ScannerLiveStateOut,
     ScannerScanRequest,
     ScannerScanResult,
@@ -87,6 +88,7 @@ async def get_live_state(
         )
 
     machine = scanner.state_of(symbol, timeframe.value, strategy)
+    poi_matches = scanner.poi_matches_for(symbol, timeframe.value, strategy)
 
     return ScannerLiveStateOut(
         symbol=symbol,
@@ -101,5 +103,6 @@ async def get_live_state(
             )
             for record in machine.history
         ],
+        poi_matches=[POIMatchOut.from_match(m) for m in poi_matches],
     )
 

@@ -107,3 +107,22 @@ def test_bad_strategy_is_422(api):
     client, _ = api
     response = client.get("/scanner/live", params=live_params(strategy="not-a-strategy"))
     assert response.status_code == 422
+
+
+def test_live_state_includes_poi_matches(api):
+    client, scanner = api
+    for candle in setup_candles():
+        scanner.process_candle("BTC/USDT", "1h", candle, [TC])
+
+    response = client.get("/scanner/live", params=live_params())
+    assert response.status_code == 200
+    body = response.json()
+
+    assert "poi_matches" in body
+    assert isinstance(body["poi_matches"], list)
+    if body["poi_matches"]:
+        m = body["poi_matches"][0]
+        assert set(m) == {
+            "poi_type", "direction", "status", "zone_low", "zone_high",
+            "overlap", "near", "distance_atr", "interaction", "match_context",
+        }
