@@ -62,6 +62,7 @@ class LiveScanner:
         max_expiry_bars: int = DEFAULT_MAX_EXPIRY_BARS,
         risk_reward: float | None = None,
         tie_break: str = "stop_first",
+        poi_near_threshold: float = 0.25,
     ) -> None:
         """Advance one new candle for `symbol`/`timeframe` across the
         requested `strategies`. Each strategy has its own isolated
@@ -117,7 +118,7 @@ class LiveScanner:
                 scope_key = Scope(symbol, timeframe, strategy)
                 matches = self._poi_matches.setdefault(scope_key, [])
                 for poi in pois:
-                    result = match_poi(poi, tracker.candles, candle_index, match_context)
+                    result = match_poi(poi, tracker.candles, candle_index, match_context, poi_near_threshold)
                     if result is not None:
                         matches.append(result)
 
