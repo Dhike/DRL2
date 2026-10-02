@@ -284,12 +284,33 @@ export default function ScannerPage() {
             {strategies.map((strategy) => {
               const state = liveStates[strategy];
               return (
-                <div key={strategy} className="flex items-center justify-between text-sm">
-                  <span>{STRATEGY_LABELS[strategy] ?? strategy}</span>
-                  {state ? (
-                    <Badge tone="accent">{stateLabel(state.state)}</Badge>
-                  ) : (
-                    <span className="text-muted">Not being watched live yet</span>
+                <div key={strategy} className="text-sm">
+                  <div className="flex items-center justify-between">
+                    <span>{STRATEGY_LABELS[strategy] ?? strategy}</span>
+                    {state ? (
+                      <Badge tone="accent">{stateLabel(state.state)}</Badge>
+                    ) : (
+                      <span className="text-muted">Not being watched live yet</span>
+                    )}
+                  </div>
+                  {state && state.poi_matches.length > 0 && (
+                    <div className="mt-1.5 ml-3 space-y-1">
+                      {state.poi_matches.map((m, i) => (
+                        <div
+                          key={i}
+                          className="flex flex-wrap items-center gap-1.5 text-xs text-muted"
+                        >
+                          <Badge tone="neutral">{m.poi_type}</Badge>
+                          <span>{m.match_context.toLowerCase()}</span>
+                          {m.overlap && <Badge tone="accent">overlap</Badge>}
+                          {!m.overlap && m.near && <Badge tone="neutral">near</Badge>}
+                          <span>{m.interaction.toLowerCase().replace(/_/g, " ")}</span>
+                          {m.distance_atr !== null && (
+                            <span>{m.distance_atr.toFixed(2)} ATR</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               );

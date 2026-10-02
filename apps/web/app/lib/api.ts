@@ -214,12 +214,26 @@ export type ScannerTransition = {
   new_state: string;
 };
 
+export type POIMatch = {
+  poi_type: string;
+  direction: string | null;
+  status: string;
+  zone_low: number;
+  zone_high: number;
+  overlap: boolean;
+  near: boolean;
+  distance_atr: number | null;
+  interaction: string;
+  match_context: string;
+};
+
 export type ScannerLiveState = {
   symbol: string;
   timeframe: string;
   strategy: string;
   state: string;
   history: ScannerTransition[];
+  poi_matches: POIMatch[];
 };
 
 export async function getLiveState(
