@@ -105,7 +105,7 @@ def test_symbols_are_cached_separately():
 def test_unknown_symbol_is_rejected():
     service, provider = make_service()
     with pytest.raises(UnknownInstrumentError):
-        asyncio.run(service.get_candles("DOGE/USDT", Timeframe.H1))
+        asyncio.run(service.get_candles("NOPE/USD", Timeframe.H1))
     assert provider.calls == []
 
 

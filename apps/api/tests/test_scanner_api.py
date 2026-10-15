@@ -93,7 +93,7 @@ def test_scan_produces_a_real_signal(api):
     assert signal["take_profit"] is None
     assert signal["structure_scope"] == "external"
     assert signal["symbol"] == "EUR/USD"
-    assert signal["market"] == "crypto"
+    assert signal["market"] == "forex"
 
 
 def test_scan_with_a_non_matching_scope_returns_no_signals(api):
@@ -111,7 +111,7 @@ def test_empty_strategies_is_422(api):
 
 def test_unknown_symbol_is_404(api):
     client, _ = api
-    response = client.post("/scanner/scan", json=scan_body(symbol="DOGE/USDT"))
+    response = client.post("/scanner/scan", json=scan_body(symbol="NOPE/USD"))
     assert response.status_code == 404
     assert response.json()["detail"] == "Unknown instrument"
 

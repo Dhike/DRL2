@@ -149,7 +149,7 @@ def test_one_symbol_fetch_failure_does_not_abort_the_cycle(monkeypatch):
 
         async def get_candles(self, symbol, timeframe, limit=200, closed_only=False):
             self.calls.append(symbol)
-            if symbol == "BAD/USDT":
+            if symbol == "BAD/USD":
                 raise RuntimeError("simulated provider failure")
             return make_candles(3)
 
@@ -159,7 +159,7 @@ def test_one_symbol_fetch_failure_does_not_abort_the_cycle(monkeypatch):
     )
 
     loop = ScannerLoop(
-        symbols=["BAD/USDT", "EUR/USD"], timeframe="1h",
+        symbols=["BAD/USD", "EUR/USD"], timeframe="1h",
         strategies=["trend_continuation"], poll_seconds=60,
     )
     import app.scanner.background as bg
@@ -167,10 +167,10 @@ def test_one_symbol_fetch_failure_does_not_abort_the_cycle(monkeypatch):
 
     asyncio.run(loop._poll_once())  # must not raise
 
-    assert fake_service.calls == ["BAD/USDT", "EUR/USD"]
+    assert fake_service.calls == ["BAD/USD", "EUR/USD"]
     tracker = bg._scanner._tracker_for("EUR/USD", "1h")
     assert len(tracker.candles) == 3
-    assert "BAD/USDT" not in loop._last_seen
+    assert "BAD/USD" not in loop._last_seen
 
 
 def test_start_and_stop_cycle(monkeypatch):

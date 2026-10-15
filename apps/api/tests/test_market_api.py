@@ -82,7 +82,7 @@ def test_instruments(api):
     body = response.json()
     assert body["provider"] == "fake"
     assert [i["symbol"] for i in body["instruments"]] == ["EUR/USD", "GBP/USD"]
-    assert body["instruments"][0]["market"] == "crypto"
+    assert body["instruments"][0]["market"] == "forex"
     assert body["timeframes"] == ["1h", "1d"]
 
 
@@ -122,7 +122,7 @@ def test_repeated_requests_hit_the_cache(api):
 
 def test_unknown_symbol_is_404(api):
     client, _ = api
-    response = client.get("/market/candles", params=candles_params(symbol="DOGE/USDT"))
+    response = client.get("/market/candles", params=candles_params(symbol="NOPE/USD"))
     assert response.status_code == 404
     assert response.json()["detail"] == "Unknown instrument"
 
