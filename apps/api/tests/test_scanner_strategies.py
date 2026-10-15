@@ -67,7 +67,7 @@ def test_end_to_end_trend_continuation_signal():
             entry_price=112.4,
             stop_loss=110.5,
             take_profit=None,
-            score=0.0,
+            score=73.5,
             reason=(
                 "Trend confirmed, strong BOS completed, BOS level retested, "
                 "and bullish_marubozu confirmed continuation."
