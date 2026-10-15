@@ -45,7 +45,7 @@ def make_candle(low=None, high=None, close=None):
 
 
 def scope(strategy):
-    return Scope("BTC/USDT", "1h", strategy)
+    return Scope("EUR/USD", "1h", strategy)
 
 
 def test_no_op_outside_valid_setup():

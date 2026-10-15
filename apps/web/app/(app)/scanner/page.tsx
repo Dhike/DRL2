@@ -17,6 +17,13 @@ import {
   type ScannerLiveState,
   type ScannerSignal,
 } from "../../lib/api";
+import {
+  firstInMarket,
+  marketLabel,
+  marketsOf,
+  resolveInstrument,
+  resolveTimeframe,
+} from "../../lib/markets";
 
 const STRATEGIES = [
   { value: "trend_continuation", label: "Trend Continuation" },
@@ -55,8 +62,8 @@ function stateLabel(state: string): string {
 export default function ScannerPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [symbol, setSymbol] = useState("BTC/USDT");
-  const [timeframe, setTimeframe] = useState("1h");
+  const [symbolChoice, setSymbolChoice] = useState<string | null>(null);
+  const [timeframeChoice, setTimeframeChoice] = useState<string | null>(null);
   const [strategies, setStrategies] = useState<string[]>(
     STRATEGIES.map((s) => s.value),
   );
@@ -69,9 +76,17 @@ export default function ScannerPage() {
     Record<string, ScannerLiveState | null>
   >({});
 
+  const instruments = catalog?.instruments ?? [];
+  const timeframes = catalog?.timeframes ?? [];
+  const instrument = resolveInstrument(instruments, symbolChoice);
+  const symbol = instrument?.symbol ?? null;
+  const market = instrument?.market ?? null;
+  const timeframe = resolveTimeframe(timeframes, timeframeChoice);
+  const markets = marketsOf(instruments);
+  const marketInstruments = instruments.filter((i) => i.market === market);
 
   useEffect(() => {
-    if (strategies.length === 0) return undefined;
+    if (!symbol || !timeframe || strategies.length === 0) return undefined;
     let cancelled = false;
 
     async function poll() {
@@ -121,7 +136,7 @@ export default function ScannerPage() {
   }
 
   async function runScan() {
-    if (strategies.length === 0) return;
+    if (!symbol || !timeframe || strategies.length === 0) return;
     setScanning(true);
     setScanError(null);
     try {
@@ -143,9 +158,6 @@ export default function ScannerPage() {
     }
   }
 
-  const instruments = catalog?.instruments ?? [{ symbol, market: "crypto" }];
-  const timeframes = catalog?.timeframes ?? [timeframe];
-
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="text-2xl font-semibold">Scanner</h1>
@@ -160,20 +172,44 @@ export default function ScannerPage() {
       )}
 
       <Card className="mt-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="text-muted">Market</span>
+            <Select
+              value={market ?? ""}
+              disabled={instruments.length === 0}
+              onChange={(e) =>
+                setSymbolChoice(firstInMarket(instruments, e.target.value))
+              }
+            >
+              {markets.map((m) => (
+                <option key={m} value={m}>
+                  {marketLabel(m)}
+                </option>
+              ))}
+            </Select>
+          </label>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted">Instrument</span>
-            <Select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-              {instruments.map((instrument) => (
-                <option key={instrument.symbol} value={instrument.symbol}>
-                  {instrument.symbol}
+            <Select
+              value={symbol ?? ""}
+              disabled={instruments.length === 0}
+              onChange={(e) => setSymbolChoice(e.target.value)}
+            >
+              {marketInstruments.map((i) => (
+                <option key={i.symbol} value={i.symbol}>
+                  {i.symbol}
                 </option>
               ))}
             </Select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted">Timeframe</span>
-            <Select value={timeframe} onChange={(e) => setTimeframe(e.target.value)}>
+            <Select
+              value={timeframe ?? ""}
+              disabled={timeframes.length === 0}
+              onChange={(e) => setTimeframeChoice(e.target.value)}
+            >
               {timeframes.map((tf) => (
                 <option key={tf} value={tf}>
                   {tf}
@@ -206,7 +242,7 @@ export default function ScannerPage() {
         <Button
           type="button"
           onClick={runScan}
-          disabled={scanning || strategies.length === 0}
+          disabled={scanning || strategies.length === 0 || !symbol || !timeframe}
           className="mt-4"
         >
           {scanning ? (

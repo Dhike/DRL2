@@ -47,7 +47,7 @@ def api():
 
 
 def live_params(**overrides):
-    params = {"symbol": "BTC/USDT", "timeframe": "1h", "strategy": "trend_continuation"}
+    params = {"symbol": "EUR/USD", "timeframe": "1h", "strategy": "trend_continuation"}
     params.update(overrides)
     return params
 
@@ -61,13 +61,13 @@ def test_live_state_for_an_unscanned_scope_is_404(api):
 def test_live_state_reflects_real_processed_candles(api):
     client, scanner = api
     for candle in setup_candles():
-        scanner.process_candle("BTC/USDT", "1h", candle, [TC])
+        scanner.process_candle("EUR/USD", "1h", candle, [TC])
 
     response = client.get("/scanner/live", params=live_params())
     assert response.status_code == 200
     body = response.json()
 
-    assert body["symbol"] == "BTC/USDT"
+    assert body["symbol"] == "EUR/USD"
     assert body["timeframe"] == "1h"
     assert body["strategy"] == "trend_continuation"
     assert body["state"] == "valid_setup"
@@ -82,7 +82,7 @@ def test_live_state_only_matches_the_exact_scope(api):
     scope for the same symbol appear as scanned."""
     client, scanner = api
     for candle in setup_candles():
-        scanner.process_candle("BTC/USDT", "1h", candle, [TC])
+        scanner.process_candle("EUR/USD", "1h", candle, [TC])
 
     response = client.get(
         "/scanner/live",
@@ -112,7 +112,7 @@ def test_bad_strategy_is_422(api):
 def test_live_state_includes_poi_matches(api):
     client, scanner = api
     for candle in setup_candles():
-        scanner.process_candle("BTC/USDT", "1h", candle, [TC])
+        scanner.process_candle("EUR/USD", "1h", candle, [TC])
 
     response = client.get("/scanner/live", params=live_params())
     assert response.status_code == 200

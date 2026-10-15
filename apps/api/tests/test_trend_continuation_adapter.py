@@ -39,7 +39,7 @@ def setup_candles():
 
 
 def run_through(candles):
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", TC))
     tracker = StructureTracker()
     first_seen_at: dict[SetupState, int] = {}
 
@@ -169,7 +169,7 @@ def _tracker_of(n):
 
 
 def test_level_loss_invalidates_from_break_detected():
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", TC))
     machine.state = SetupState.BREAK_DETECTED
     machine.context = _fake_break()
     machine.state_entered_at = 10
@@ -187,7 +187,7 @@ def test_level_loss_invalidates_from_break_detected():
 
 
 def test_level_loss_invalidates_from_retest_waiting():
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", TC))
     machine.state = SetupState.RETEST_WAITING
     machine.context = _fake_retest()
     machine.state_entered_at = 14
@@ -205,7 +205,7 @@ def test_level_loss_invalidates_from_retest_waiting():
 
 
 def test_no_invalidation_while_the_level_holds():
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", TC))
     machine.state = SetupState.BREAK_DETECTED
     machine.context = _fake_break()
     machine.state_entered_at = 10
@@ -222,7 +222,7 @@ def test_no_invalidation_while_the_level_holds():
 
 
 def test_expiry_fires_after_max_bars_from_break_detected():
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", TC))
     machine.state = SetupState.BREAK_DETECTED
     machine.context = _fake_break()
     machine.state_entered_at = 10
@@ -240,7 +240,7 @@ def test_expiry_fires_after_max_bars_from_break_detected():
 
 
 def test_no_expiry_before_max_bars_from_retest_waiting():
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", TC))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", TC))
     machine.state = SetupState.RETEST_WAITING
     machine.context = _fake_retest()
     machine.state_entered_at = 14

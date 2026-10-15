@@ -30,7 +30,7 @@ def make_candles(rows):
 
 
 def run_through(candles, max_expiry_bars=20):
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", BR))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", BR))
     tracker = StructureTracker()
     first_seen_at: dict[SetupState, int] = {}
     for i, candle in enumerate(candles):

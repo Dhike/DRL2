@@ -44,7 +44,7 @@ class FakeProvider(MarketDataProvider):
         self.candles = candles if candles is not None else setup_candles()
 
     def instruments(self):
-        return [MarketInstrument(MarketType.CRYPTO, "BTC/USDT", "BTC_USDT")]
+        return [MarketInstrument(MarketType.FOREX, "EUR/USD", "frxEURUSD")]
 
     def timeframes(self):
         return [Timeframe.H1, Timeframe.D1]
@@ -70,7 +70,7 @@ def api():
 
 def scan_body(**overrides):
     body = {
-        "symbol": "BTC/USDT",
+        "symbol": "EUR/USD",
         "timeframe": "1h",
         "strategies": ["trend_continuation"],
     }
@@ -92,7 +92,7 @@ def test_scan_produces_a_real_signal(api):
     assert signal["stop_loss"] == 110.5
     assert signal["take_profit"] is None
     assert signal["structure_scope"] == "external"
-    assert signal["symbol"] == "BTC/USDT"
+    assert signal["symbol"] == "EUR/USD"
     assert signal["market"] == "crypto"
 
 

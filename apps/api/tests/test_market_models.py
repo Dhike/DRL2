@@ -91,7 +91,7 @@ class FakeProvider(MarketDataProvider):
     capabilities = frozenset({DataCapability.HISTORICAL_CANDLES})
 
     def instruments(self):
-        return [MarketInstrument(MarketType.CRYPTO, "BTC/USDT", "BTC_USDT")]
+        return [MarketInstrument(MarketType.FOREX, "EUR/USD", "frxEURUSD")]
 
     def timeframes(self):
         return [Timeframe.H1]

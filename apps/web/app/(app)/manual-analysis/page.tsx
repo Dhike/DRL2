@@ -16,10 +16,17 @@ import {
   type CandleData,
   type Catalog,
 } from "../../lib/api";
+import {
+  firstInMarket,
+  marketLabel,
+  marketsOf,
+  resolveInstrument,
+  resolveTimeframe,
+} from "../../lib/markets";
 
 type Loaded = { key: string; candles: CandleData[]; error: string | null };
 
-const PROVIDER_LABELS: Record<string, string> = { gate: "Gate.io" };
+const PROVIDER_LABELS: Record<string, string> = { deriv: "Deriv" };
 
 function describe(err: unknown): string {
   return err instanceof ApiError
@@ -36,8 +43,8 @@ function formatPrice(value: number): string {
 export default function ManualAnalysisPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [symbol, setSymbol] = useState("BTC/USDT");
-  const [timeframe, setTimeframe] = useState("1h");
+  const [symbolChoice, setSymbolChoice] = useState<string | null>(null);
+  const [timeframeChoice, setTimeframeChoice] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
 
@@ -55,9 +62,20 @@ export default function ManualAnalysisPage() {
     };
   }, []);
 
+  const instruments = catalog?.instruments ?? [];
+  const timeframes = catalog?.timeframes ?? [];
+  const instrument = resolveInstrument(instruments, symbolChoice);
+  const symbol = instrument?.symbol ?? null;
+  const market = instrument?.market ?? null;
+  const timeframe = resolveTimeframe(timeframes, timeframeChoice);
+  const markets = marketsOf(instruments);
+  const marketInstruments = instruments.filter((i) => i.market === market);
+  const catalogLoading = catalog === null && catalogError === null;
+
   const requestKey = `${symbol}|${timeframe}|${reloadKey}`;
 
   useEffect(() => {
+    if (!symbol || !timeframe) return undefined;
     let cancelled = false;
     getCandles(symbol, timeframe, 300)
       .then((result) => {
@@ -75,7 +93,8 @@ export default function ManualAnalysisPage() {
     };
   }, [symbol, timeframe, requestKey]);
 
-  const loading = loaded?.key !== requestKey;
+  const loading =
+    symbol !== null && timeframe !== null && loaded?.key !== requestKey;
   const candles = loaded?.candles ?? [];
   const error = loading ? null : (loaded?.error ?? null);
 
@@ -83,9 +102,6 @@ export default function ManualAnalysisPage() {
   const last = candles.at(-1);
   const change =
     first && last ? ((last.close - first.open) / first.open) * 100 : null;
-
-  const instruments = catalog?.instruments ?? [{ symbol, market: "crypto" }];
-  const timeframes = catalog?.timeframes ?? [timeframe];
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -98,7 +114,7 @@ export default function ManualAnalysisPage() {
         )}
       </div>
       <p className="mt-1 text-sm text-muted">
-        Pick an instrument and timeframe to view price candles.
+        Pick a market, instrument and timeframe to view price candles.
       </p>
 
       {catalogError && (
@@ -106,21 +122,40 @@ export default function ManualAnalysisPage() {
           {catalogError}
         </Message>
       )}
+      {catalog && instruments.length === 0 && (
+        <Message kind="error" className="mt-4">
+          The market data provider returned no instruments. Try again shortly.
+        </Message>
+      )}
 
       <Card className="mt-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted">Market</span>
-            <Select disabled defaultValue="crypto">
-              <option value="crypto">Crypto</option>
+            <Select
+              value={market ?? ""}
+              disabled={instruments.length === 0}
+              onChange={(e) =>
+                setSymbolChoice(firstInMarket(instruments, e.target.value))
+              }
+            >
+              {markets.map((m) => (
+                <option key={m} value={m}>
+                  {marketLabel(m)}
+                </option>
+              ))}
             </Select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted">Instrument</span>
-            <Select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-              {instruments.map((instrument) => (
-                <option key={instrument.symbol} value={instrument.symbol}>
-                  {instrument.symbol}
+            <Select
+              value={symbol ?? ""}
+              disabled={instruments.length === 0}
+              onChange={(e) => setSymbolChoice(e.target.value)}
+            >
+              {marketInstruments.map((i) => (
+                <option key={i.symbol} value={i.symbol}>
+                  {i.symbol}
                 </option>
               ))}
             </Select>
@@ -131,7 +166,7 @@ export default function ManualAnalysisPage() {
             <button
               key={tf}
               type="button"
-              onClick={() => setTimeframe(tf)}
+              onClick={() => setTimeframeChoice(tf)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                 tf === timeframe
                   ? "bg-accent text-accent-foreground"
@@ -145,7 +180,7 @@ export default function ManualAnalysisPage() {
             type="button"
             variant="secondary"
             onClick={() => setReloadKey((k) => k + 1)}
-            disabled={loading}
+            disabled={loading || symbol === null}
             className="ml-auto"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
@@ -157,7 +192,7 @@ export default function ManualAnalysisPage() {
       <Card className="mt-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <span className="text-lg font-semibold">{symbol}</span>
+            <span className="text-lg font-semibold">{symbol ?? "—"}</span>
             {last && (
               <span className="ml-3 text-lg">{formatPrice(last.close)}</span>
             )}
@@ -171,11 +206,13 @@ export default function ManualAnalysisPage() {
             )}
           </div>
           <div className="text-xs text-muted">
-            {loading
-              ? "Loading..."
-              : last
-                ? `Last bar ${new Date(last.time * 1000).toLocaleString()}${last.closed ? "" : " (forming)"}`
-                : ""}
+            {catalogLoading
+              ? "Loading instruments..."
+              : loading
+                ? "Loading..."
+                : last
+                  ? `Last bar ${new Date(last.time * 1000).toLocaleString()}${last.closed ? "" : " (forming)"}`
+                  : ""}
           </div>
         </div>
         {error && (

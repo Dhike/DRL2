@@ -31,8 +31,8 @@ class FakeProvider(MarketDataProvider):
 
     def instruments(self):
         return [
-            MarketInstrument(MarketType.CRYPTO, "BTC/USDT", "BTC_USDT"),
-            MarketInstrument(MarketType.CRYPTO, "ETH/USDT", "ETH_USDT"),
+            MarketInstrument(MarketType.FOREX, "EUR/USD", "frxEURUSD"),
+            MarketInstrument(MarketType.FOREX, "GBP/USD", "frxGBPUSD"),
         ]
 
     def timeframes(self):
@@ -70,7 +70,7 @@ def api():
 
 
 def candles_params(**overrides):
-    params = {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 5}
+    params = {"symbol": "EUR/USD", "timeframe": "1h", "limit": 5}
     params.update(overrides)
     return params
 
@@ -81,7 +81,7 @@ def test_instruments(api):
     assert response.status_code == 200
     body = response.json()
     assert body["provider"] == "fake"
-    assert [i["symbol"] for i in body["instruments"]] == ["BTC/USDT", "ETH/USDT"]
+    assert [i["symbol"] for i in body["instruments"]] == ["EUR/USD", "GBP/USD"]
     assert body["instruments"][0]["market"] == "crypto"
     assert body["timeframes"] == ["1h", "1d"]
 
@@ -93,7 +93,7 @@ def test_candles_shape_and_order(api):
     body = response.json()
     assert (body["provider"], body["symbol"], body["timeframe"]) == (
         "fake",
-        "BTC/USDT",
+        "EUR/USD",
         "1h",
     )
     candles = body["candles"]

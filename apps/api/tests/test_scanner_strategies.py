@@ -49,7 +49,7 @@ def setup_candles():
 def request(*strategies):
     return ScannerRequest(
         market="crypto",
-        symbol="BTC/USDT",
+        symbol="EUR/USD",
         timeframe="1h",
         strategies=tuple(strategies) or (TC,),
     )
@@ -60,7 +60,7 @@ def test_end_to_end_trend_continuation_signal():
     assert signals == (
         ScannerSignal(
             market="crypto",
-            symbol="BTC/USDT",
+            symbol="EUR/USD",
             timeframe="1h",
             strategy=TC,
             direction="bullish",
@@ -94,7 +94,7 @@ def test_no_signal_without_a_setup():
 
 def test_at_least_one_strategy_is_required():
     empty = ScannerRequest(
-        market="crypto", symbol="BTC/USDT", timeframe="1h", strategies=()
+        market="crypto", symbol="EUR/USD", timeframe="1h", strategies=()
     )
     with pytest.raises(ValueError, match="At least one scanner strategy"):
         run_strategies(empty, setup_candles())

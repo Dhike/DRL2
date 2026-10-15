@@ -56,7 +56,7 @@ def make_external():
 
 
 def run_through(rows, max_expiry_bars=20):
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", LS))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", LS))
     tracker = StructureTracker()
     external = make_external()
     first_seen_at: dict[SetupState, int] = {}
@@ -144,7 +144,7 @@ def _fake_bos_context():
 
 
 def test_level_loss_invalidates_from_retest_waiting():
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", LS))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", LS))
     choch, matching_return, bos = _fake_bos_context()
     machine.state = SetupState.RETEST_WAITING
     machine.context = (bos, matching_return)
@@ -165,7 +165,7 @@ def test_level_loss_invalidates_from_retest_waiting():
 
 
 def test_no_expiry_before_max_bars_from_retest_waiting():
-    machine = SetupStateMachine(Scope("BTC/USDT", "1h", LS))
+    machine = SetupStateMachine(Scope("EUR/USD", "1h", LS))
     choch, matching_return, bos = _fake_bos_context()
     machine.state = SetupState.RETEST_WAITING
     machine.context = (bos, matching_return)

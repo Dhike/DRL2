@@ -22,7 +22,7 @@ class FakeProvider(MarketDataProvider):
         self.calls = 0
 
     def instruments(self):
-        return [MarketInstrument(MarketType.CRYPTO, "BTC/USDT", "BTC_USDT")]
+        return [MarketInstrument(MarketType.FOREX, "EUR/USD", "frxEURUSD")]
 
     def timeframes(self):
         return [Timeframe.H1]
@@ -45,7 +45,7 @@ def make_candles(n, start=0):
 
 def make_loop_with_provider(provider: FakeProvider, scanner: LiveScanner) -> ScannerLoop:
     loop = ScannerLoop(
-        symbols=["BTC/USDT"], timeframe="1h",
+        symbols=["EUR/USD"], timeframe="1h",
         strategies=["trend_continuation"], poll_seconds=60,
     )
     # Route through a real MarketService pointed at the fake provider,
@@ -65,7 +65,7 @@ def test_poll_once_processes_new_candles(monkeypatch):
     )
 
     loop = ScannerLoop(
-        symbols=["BTC/USDT"], timeframe="1h",
+        symbols=["EUR/USD"], timeframe="1h",
         strategies=["trend_continuation"], poll_seconds=60,
     )
 
@@ -74,9 +74,9 @@ def test_poll_once_processes_new_candles(monkeypatch):
 
     asyncio.run(loop._poll_once())
 
-    tracker = bg._scanner._tracker_for("BTC/USDT", "1h")
+    tracker = bg._scanner._tracker_for("EUR/USD", "1h")
     assert len(tracker.candles) == 5
-    assert loop._last_seen["BTC/USDT"] == candles[-1].timestamp
+    assert loop._last_seen["EUR/USD"] == candles[-1].timestamp
 
 
 def test_second_poll_skips_already_seen_candles(monkeypatch):
@@ -90,7 +90,7 @@ def test_second_poll_skips_already_seen_candles(monkeypatch):
     )
 
     loop = ScannerLoop(
-        symbols=["BTC/USDT"], timeframe="1h",
+        symbols=["EUR/USD"], timeframe="1h",
         strategies=["trend_continuation"], poll_seconds=60,
     )
     import app.scanner.background as bg
@@ -99,7 +99,7 @@ def test_second_poll_skips_already_seen_candles(monkeypatch):
     asyncio.run(loop._poll_once())
     asyncio.run(loop._poll_once())  # same 5 candles again, nothing new
 
-    tracker = bg._scanner._tracker_for("BTC/USDT", "1h")
+    tracker = bg._scanner._tracker_for("EUR/USD", "1h")
     assert len(tracker.candles) == 5  # NOT 10
 
 
@@ -126,7 +126,7 @@ def test_second_poll_adds_only_genuinely_new_candles(monkeypatch):
     )
 
     loop = ScannerLoop(
-        symbols=["BTC/USDT"], timeframe="1h",
+        symbols=["EUR/USD"], timeframe="1h",
         strategies=["trend_continuation"], poll_seconds=60,
     )
     import app.scanner.background as bg
@@ -138,7 +138,7 @@ def test_second_poll_adds_only_genuinely_new_candles(monkeypatch):
     fake_service.candles = make_candles(7)
     asyncio.run(loop._poll_once())
 
-    tracker = bg._scanner._tracker_for("BTC/USDT", "1h")
+    tracker = bg._scanner._tracker_for("EUR/USD", "1h")
     assert len(tracker.candles) == 7
 
 
@@ -159,7 +159,7 @@ def test_one_symbol_fetch_failure_does_not_abort_the_cycle(monkeypatch):
     )
 
     loop = ScannerLoop(
-        symbols=["BAD/USDT", "BTC/USDT"], timeframe="1h",
+        symbols=["BAD/USDT", "EUR/USD"], timeframe="1h",
         strategies=["trend_continuation"], poll_seconds=60,
     )
     import app.scanner.background as bg
@@ -167,8 +167,8 @@ def test_one_symbol_fetch_failure_does_not_abort_the_cycle(monkeypatch):
 
     asyncio.run(loop._poll_once())  # must not raise
 
-    assert fake_service.calls == ["BAD/USDT", "BTC/USDT"]
-    tracker = bg._scanner._tracker_for("BTC/USDT", "1h")
+    assert fake_service.calls == ["BAD/USDT", "EUR/USD"]
+    tracker = bg._scanner._tracker_for("EUR/USD", "1h")
     assert len(tracker.candles) == 3
     assert "BAD/USDT" not in loop._last_seen
 
@@ -183,7 +183,7 @@ def test_start_and_stop_cycle(monkeypatch):
 
     async def run():
         loop = ScannerLoop(
-            symbols=["BTC/USDT"], timeframe="1h",
+            symbols=["EUR/USD"], timeframe="1h",
             strategies=["trend_continuation"], poll_seconds=0.01,
         )
         loop.start()
@@ -239,7 +239,7 @@ def test_poll_passes_risk_reward_through_to_a_real_take_profit_trigger(monkeypat
     )
 
     loop = ScannerLoop(
-        symbols=["BTC/USDT"], timeframe="1h",
+        symbols=["EUR/USD"], timeframe="1h",
         strategies=["trend_continuation"], poll_seconds=60,
         risk_reward=2.0, tie_break="stop_first",
     )
@@ -248,7 +248,7 @@ def test_poll_passes_risk_reward_through_to_a_real_take_profit_trigger(monkeypat
 
     asyncio.run(loop._poll_once())
     machine = bg._scanner.state_of(
-        "BTC/USDT", "1h", ScannerStrategy.TREND_CONTINUATION
+        "EUR/USD", "1h", ScannerStrategy.TREND_CONTINUATION
     )
     assert machine.state is SetupState.VALID_SETUP
 
@@ -256,7 +256,7 @@ def test_poll_passes_risk_reward_through_to_a_real_take_profit_trigger(monkeypat
     asyncio.run(loop._poll_once())
 
     machine = bg._scanner.state_of(
-        "BTC/USDT", "1h", ScannerStrategy.TREND_CONTINUATION
+        "EUR/USD", "1h", ScannerStrategy.TREND_CONTINUATION
     )
     assert machine.state is SetupState.TRIGGERED
     assert "take-profit" in machine.history[-1].reason

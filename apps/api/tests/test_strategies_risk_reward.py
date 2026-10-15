@@ -29,7 +29,7 @@ def setup_candles():
 
 def request():
     return ScannerRequest(
-        market="crypto", symbol="BTC/USDT", timeframe="1h", strategies=(TC,),
+        market="crypto", symbol="EUR/USD", timeframe="1h", strategies=(TC,),
     )
 
 

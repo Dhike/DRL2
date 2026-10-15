@@ -15,7 +15,7 @@ from app.scanner.structure import StructureScope
 def make_signal(**overrides):
     values = dict(
         market="crypto",
-        symbol="BTC/USDT",
+        symbol="EUR/USD",
         timeframe="1h",
         strategy=ScannerStrategy.TREND_CONTINUATION,
         direction="bullish",
@@ -32,7 +32,7 @@ def make_signal(**overrides):
 def make_request():
     return ScannerRequest(
         market="crypto",
-        symbol="BTC/USDT",
+        symbol="EUR/USD",
         timeframe="1h",
         strategies=(ScannerStrategy.BREAK_AND_RETEST,),
     )
@@ -59,7 +59,7 @@ def test_request_keeps_its_fields():
     request = make_request()
     assert (request.market, request.symbol, request.timeframe) == (
         "crypto",
-        "BTC/USDT",
+        "EUR/USD",
         "1h",
     )
     assert request.strategies == (ScannerStrategy.BREAK_AND_RETEST,)
