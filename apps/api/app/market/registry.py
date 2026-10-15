@@ -3,13 +3,11 @@ from collections.abc import Callable
 
 from app.config import settings
 from app.market.deriv import DerivProvider
-from app.market.gate import GateProvider
 from app.market.provider import MarketDataProvider
 
 logger = logging.getLogger("drl2.market.registry")
 
 _FACTORIES: dict[str, Callable[[], MarketDataProvider]] = {
-    "gate": GateProvider,
     "deriv": DerivProvider,
 }
 _providers: dict[str, MarketDataProvider] = {}

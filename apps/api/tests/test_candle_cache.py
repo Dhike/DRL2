@@ -4,7 +4,7 @@ import pytest
 
 from app.market.cache import CandleCache
 
-KEY = ("gate", "BTC/USDT", "1h", 100)
+KEY = ("deriv", "EUR/USD", "1h", 100)
 
 
 class Clock:

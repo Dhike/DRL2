@@ -6,7 +6,7 @@ from app.scanner.models import ScannerStrategy
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _DEV_JWT_SECRET = "dev-only-secret-change-me-before-production-0123456789"
-_MARKET_PROVIDERS = ("gate", "deriv")
+_MARKET_PROVIDERS = ("deriv",)
 
 
 class Settings(BaseSettings):
