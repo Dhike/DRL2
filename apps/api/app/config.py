@@ -28,13 +28,13 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_use_starttls: bool = True
-    market_provider: str = "gate"
+    market_provider: str = "deriv"
     scanner_enabled: bool = False
     scanner_poll_seconds: int = 60
     scanner_risk_reward: float | None = 2.0
     scanner_tie_break: str = "stop_first"
     scanner_poi_near_threshold: float = 0.25
-    scanner_symbols: list[str] = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+    scanner_symbols: list[str] = ["EUR/USD"]
     scanner_timeframe: str = "1h"
     scanner_strategies: list[str] = [
         "trend_continuation",
