@@ -1,9 +1,9 @@
 """Live, per-symbol/timeframe orchestration of the scanner strategies.
 
 Ties together everything built so far: one StructureTracker per
-(symbol, timeframe) -- shared across all strategies for that pair, so
+(provider, symbol, timeframe) -- shared across all strategies for that unit, so
 structure is computed once, not three times -- and one
-SetupStateMachine per (symbol, timeframe, strategy) via the existing
+SetupStateMachine per (provider, symbol, timeframe, strategy) via the existing
 StateMachineRegistry, guaranteeing the isolation this whole phase was
 built to prove.
 
@@ -25,7 +25,12 @@ from app.scanner.break_and_retest_adapter import advance_break_and_retest
 from app.scanner.level_loss import LevelLossPolicy
 from app.scanner.liquidity_sweep_adapter import advance_liquidity_sweep
 from app.scanner.models import ScannerStrategy
-from app.scanner.state_machine import Scope, SetupState, StateMachineRegistry
+from app.scanner.state_machine import (
+    DEFAULT_PROVIDER,
+    Scope,
+    SetupState,
+    StateMachineRegistry,
+)
 from app.scanner.structure import StructureScope
 from app.scanner.structure_tracker import StructureTracker
 from app.scanner.trigger import check_trigger
@@ -38,13 +43,15 @@ DEFAULT_MAX_EXPIRY_BARS = 20
 
 class LiveScanner:
     def __init__(self) -> None:
-        self._trackers: dict[tuple[str, str], StructureTracker] = {}
+        self._trackers: dict[tuple[str, str, str], StructureTracker] = {}
         self._registry = StateMachineRegistry()
-        self._candle_counts: dict[tuple[str, str], int] = {}
+        self._candle_counts: dict[tuple[str, str, str], int] = {}
         self._poi_matches: dict[Scope, list[POIMatch]] = {}
 
-    def _tracker_for(self, symbol: str, timeframe: str) -> StructureTracker:
-        key = (symbol, timeframe)
+    def _tracker_for(
+        self, symbol: str, timeframe: str, provider: str = DEFAULT_PROVIDER
+    ) -> StructureTracker:
+        key = (provider, symbol, timeframe)
         if key not in self._trackers:
             self._trackers[key] = StructureTracker()
             self._candle_counts[key] = 0
@@ -63,19 +70,20 @@ class LiveScanner:
         risk_reward: float | None = None,
         tie_break: str = "stop_first",
         poi_near_threshold: float = 0.25,
+        provider: str = DEFAULT_PROVIDER,
     ) -> None:
         """Advance one new candle for `symbol`/`timeframe` across the
         requested `strategies`. Each strategy has its own isolated
         SetupStateMachine; the structure tracker is shared between them
         since it does not depend on the strategy."""
-        tracker = self._tracker_for(symbol, timeframe)
+        tracker = self._tracker_for(symbol, timeframe, provider)
         tracker.add_candle(candle)
-        key = (symbol, timeframe)
+        key = (provider, symbol, timeframe)
         self._candle_counts[key] += 1
         candle_index = self._candle_counts[key] - 1
 
         for strategy in strategies:
-            machine = self._registry.get(Scope(symbol, timeframe, strategy))
+            machine = self._registry.get(Scope(symbol, timeframe, strategy, provider))
             # A setup already VALID_SETUP going into this candle can have
             # its stop checked; a setup that only BECOMES VALID_SETUP on
             # this candle must not, since its own confirmation candle is
@@ -115,18 +123,30 @@ class LiveScanner:
                 )
                 bos_events = tuple(tracker.current_analysis().bos_events)
                 pois = detect_all_pois(tracker.candles, bos_events)
-                scope_key = Scope(symbol, timeframe, strategy)
+                scope_key = Scope(symbol, timeframe, strategy, provider)
                 matches = self._poi_matches.setdefault(scope_key, [])
                 for poi in pois:
                     result = match_poi(poi, tracker.candles, candle_index, match_context, poi_near_threshold)
                     if result is not None:
                         matches.append(result)
 
-    def state_of(self, symbol: str, timeframe: str, strategy: ScannerStrategy):
-        return self._registry.get(Scope(symbol, timeframe, strategy))
+    def state_of(
+        self,
+        symbol: str,
+        timeframe: str,
+        strategy: ScannerStrategy,
+        provider: str = DEFAULT_PROVIDER,
+    ):
+        return self._registry.get(Scope(symbol, timeframe, strategy, provider))
 
-    def poi_matches_for(self, symbol: str, timeframe: str, strategy: ScannerStrategy) -> list:
-        return self._poi_matches.get(Scope(symbol, timeframe, strategy), [])
+    def poi_matches_for(
+        self,
+        symbol: str,
+        timeframe: str,
+        strategy: ScannerStrategy,
+        provider: str = DEFAULT_PROVIDER,
+    ) -> list:
+        return self._poi_matches.get(Scope(symbol, timeframe, strategy, provider), [])
 
     def known_scopes(self) -> list[Scope]:
         return self._registry.scopes()

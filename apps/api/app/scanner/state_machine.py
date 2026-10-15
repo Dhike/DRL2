@@ -41,11 +41,17 @@ WAITING_STATES = (
 AT_RISK_OF_LEVEL_LOSS = WAITING_STATES + (SetupState.VALID_SETUP,)
 
 
+# Provider of the candles a scan unit runs on. Last field, with a default, so
+# single-provider callers keep working; production callers pass it explicitly.
+DEFAULT_PROVIDER = "deriv"
+
+
 @dataclass(frozen=True)
 class Scope:
     symbol: str
     timeframe: str
     strategy: ScannerStrategy
+    provider: str = DEFAULT_PROVIDER
 
 
 @dataclass(frozen=True)

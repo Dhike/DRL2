@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.config import settings
 from app.deps import get_current_user
 from app.market.models import Timeframe
 from app.market.provider import MarketDataError
@@ -76,10 +77,17 @@ async def get_live_state(
     symbol: str,
     timeframe: Timeframe,
     strategy: ScannerStrategy,
+    provider: str | None = None,
     _: User = Depends(get_current_user),
 ) -> ScannerLiveStateOut:
     scanner = get_live_scanner()
-    scope = Scope(symbol=symbol, timeframe=timeframe.value, strategy=strategy)
+    provider = provider or settings.market_provider
+    scope = Scope(
+        symbol=symbol,
+        timeframe=timeframe.value,
+        strategy=strategy,
+        provider=provider,
+    )
 
     if scope not in scanner.known_scopes():
         raise HTTPException(
@@ -87,8 +95,8 @@ async def get_live_state(
             "This symbol/timeframe/strategy has not been scanned yet",
         )
 
-    machine = scanner.state_of(symbol, timeframe.value, strategy)
-    poi_matches = scanner.poi_matches_for(symbol, timeframe.value, strategy)
+    machine = scanner.state_of(symbol, timeframe.value, strategy, provider)
+    poi_matches = scanner.poi_matches_for(symbol, timeframe.value, strategy, provider)
 
     return ScannerLiveStateOut(
         symbol=symbol,

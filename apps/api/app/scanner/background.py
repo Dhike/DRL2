@@ -18,6 +18,7 @@ from app.market.models import Candle, Timeframe
 from app.market.service import get_market_service
 from app.scanner.live_scanner import LiveScanner
 from app.scanner.models import ScannerStrategy
+from app.scanner.state_machine import DEFAULT_PROVIDER
 
 logger = logging.getLogger("drl2.scanner.background")
 
@@ -40,6 +41,7 @@ class ScannerLoop:
         risk_reward: float | None = None,
         tie_break: str = "stop_first",
         poi_near_threshold: float = 0.25,
+        provider: str = DEFAULT_PROVIDER,
     ) -> None:
         self._symbols = symbols
         self._timeframe = Timeframe(timeframe)
@@ -48,6 +50,7 @@ class ScannerLoop:
         self._risk_reward = risk_reward
         self._tie_break = tie_break
         self._poi_near_threshold = poi_near_threshold
+        self._provider = provider
         self._last_seen: dict[str, object] = {}
         self._task: asyncio.Task | None = None
 
@@ -74,6 +77,7 @@ class ScannerLoop:
                     symbol, self._timeframe.value, candle, self._strategies,
                     risk_reward=self._risk_reward, tie_break=self._tie_break,
                     poi_near_threshold=self._poi_near_threshold,
+                    provider=self._provider,
                 )
             self._last_seen[symbol] = new_candles[-1].timestamp
 
@@ -118,6 +122,7 @@ def start_scanner_loop() -> None:
         risk_reward=settings.scanner_risk_reward,
         tie_break=settings.scanner_tie_break,
         poi_near_threshold=settings.scanner_poi_near_threshold,
+        provider=settings.market_provider,
     )
     _loop.start()
 
