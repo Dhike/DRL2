@@ -29,5 +29,10 @@ class MarketDataProvider(ABC):
     ) -> list[Candle]:
         """Return up to `limit` candles, oldest first."""
 
+    async def refresh_instruments(self) -> int:
+        """Reload the instrument list from the provider. Providers with a
+        static catalog keep this no-op."""
+        return len(self.instruments())
+
     async def aclose(self) -> None:
         """Release network resources. Providers holding none can keep this."""

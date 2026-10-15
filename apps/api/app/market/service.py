@@ -59,6 +59,8 @@ class MarketService:
     ) -> list[Candle]:
         if not 1 <= limit <= MAX_CANDLES:
             raise ValueError(f"limit must be between 1 and {MAX_CANDLES}")
+        if not self._provider.instruments():
+            await self._provider.refresh_instruments()
         instrument = self.find_instrument(symbol)
         if timeframe not in self._provider.timeframes():
             raise ValueError(
