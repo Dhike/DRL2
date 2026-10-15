@@ -27,9 +27,12 @@ def make_candle(**overrides):
 def test_timeframe_lengths():
     assert {tf.value: tf.seconds for tf in Timeframe} == {
         "1m": 60,
+        "2m": 120,
         "5m": 300,
         "15m": 900,
+        "30m": 1800,
         "1h": 3600,
+        "2h": 7200,
         "4h": 14400,
         "1d": 86400,
     }
@@ -41,6 +44,7 @@ def test_market_types():
         "crypto",
         "stocks",
         "indices",
+        "commodities",
         "synthetic",
     }
 
@@ -102,3 +106,10 @@ def test_minimal_provider_works():
     candles = asyncio.run(provider.get_candles(instrument, Timeframe.H1))
     assert candles == [make_candle()]
     asyncio.run(provider.aclose())
+
+
+def test_every_timeframe_has_a_cache_ttl():
+    from app.market.models import Timeframe
+    from app.market.service import CACHE_TTL_SECONDS
+
+    assert set(CACHE_TTL_SECONDS) == set(Timeframe)

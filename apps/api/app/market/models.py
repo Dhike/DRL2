@@ -8,6 +8,7 @@ class MarketType(str, Enum):
     CRYPTO = "crypto"
     STOCKS = "stocks"
     INDICES = "indices"
+    COMMODITIES = "commodities"
     SYNTHETIC = "synthetic"
 
 
@@ -19,9 +20,12 @@ class DataCapability(str, Enum):
 
 class Timeframe(str, Enum):
     M1 = "1m"
+    M2 = "2m"
     M5 = "5m"
     M15 = "15m"
+    M30 = "30m"
     H1 = "1h"
+    H2 = "2h"
     H4 = "4h"
     D1 = "1d"
 
@@ -32,9 +36,12 @@ class Timeframe(str, Enum):
 
 _TIMEFRAME_SECONDS: dict[Timeframe, int] = {
     Timeframe.M1: 60,
+    Timeframe.M2: 2 * 60,
     Timeframe.M5: 5 * 60,
     Timeframe.M15: 15 * 60,
+    Timeframe.M30: 30 * 60,
     Timeframe.H1: 60 * 60,
+    Timeframe.H2: 2 * 60 * 60,
     Timeframe.H4: 4 * 60 * 60,
     Timeframe.D1: 24 * 60 * 60,
 }

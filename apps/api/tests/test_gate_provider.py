@@ -141,4 +141,11 @@ def test_catalog():
         "ETH_USDT",
         "SOL_USDT",
     ]
-    assert provider.timeframes() == list(Timeframe)
+    assert provider.timeframes() == [
+        Timeframe.M1,
+        Timeframe.M5,
+        Timeframe.M15,
+        Timeframe.H1,
+        Timeframe.H4,
+        Timeframe.D1,
+    ]

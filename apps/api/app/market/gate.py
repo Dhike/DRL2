@@ -46,7 +46,10 @@ class GateProvider(MarketDataProvider):
         return list(_INSTRUMENTS)
 
     def timeframes(self) -> list[Timeframe]:
-        return list(Timeframe)
+        return [
+            Timeframe.M1, Timeframe.M5, Timeframe.M15,
+            Timeframe.H1, Timeframe.H4, Timeframe.D1,
+        ]
 
     async def get_candles(
         self,

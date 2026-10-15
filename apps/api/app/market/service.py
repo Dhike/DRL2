@@ -8,9 +8,12 @@ LIMIT_BUCKETS = (50, 100, 200, 500, 1000)
 
 CACHE_TTL_SECONDS: dict[Timeframe, float] = {
     Timeframe.M1: 15,
+    Timeframe.M2: 20,
     Timeframe.M5: 30,
     Timeframe.M15: 60,
+    Timeframe.M30: 90,
     Timeframe.H1: 120,
+    Timeframe.H2: 180,
     Timeframe.H4: 300,
     Timeframe.D1: 600,
 }
