@@ -87,13 +87,15 @@ export default function ScannerPage() {
 
   useEffect(() => {
     if (!symbol || !timeframe || strategies.length === 0) return undefined;
+    const activeSymbol: string = symbol;
+    const activeTimeframe: string = timeframe;
     let cancelled = false;
 
     async function poll() {
       const entries = await Promise.all(
         strategies.map(async (strategy) => {
           try {
-            const state = await getLiveState(symbol, timeframe, strategy);
+            const state = await getLiveState(activeSymbol, activeTimeframe, strategy);
             return [strategy, state] as const;
           } catch {
             return [strategy, null] as const;
